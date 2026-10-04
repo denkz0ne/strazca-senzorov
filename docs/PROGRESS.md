@@ -27,3 +27,11 @@ This log records completed work and verification for the staged development plan
 - Added three config-flow/setup tests, custom integration fixture support, manifest, single-instance flow, reversible empty setup/unload and English/Slovak translations.
 - Documented development status and local commands in README. Runtime has no Battery Notes dependency, entities or report listener at this scaffold stage.
 - Local verification so far: Ruff passes; `git diff --check` passes. HA pytest is pending GitHub Actions Linux run.
+
+## 2026-10-04 — Task 1 complete: integration scaffold
+
+- Added the Python 3.14 test environment, Ruff checks and GitHub Actions Linux workflow, plus the manifest, global config flow, reversible setup/unload and English/Slovak translations.
+- Added a discovery assertion and config-flow/setup tests. The test fixture explicitly appends the repository's `custom_components` path because `pytest-homeassistant-custom-component` provides its own empty package path.
+- Config entry is single-instance. Setup/unload creates no product entities and does not subscribe to `state_reported`.
+- Verification: GitHub Actions run `37221295119` passed on commit `f67f33f`; Ruff passed and pytest passed all four tests against HA Core 2026.9.4. Local Ruff and `git diff --check` also passed. HA pytest is not runnable natively in this Windows environment because HA imports POSIX `fcntl`; Linux CI is the authoritative run.
+- Task committed in the ongoing review branch. Next: Task 2, versioned storage and normalized domain records.
