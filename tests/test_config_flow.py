@@ -3,13 +3,13 @@
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import EVENT_STATE_REPORTED
 from homeassistant.data_entry_flow import FlowResultType
-from homeassistant.helpers import entity_registry as er\nfrom homeassistant.loader import async_get_custom_components
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 DOMAIN = "sensor_guardian"
 
 
-async def test_print_discovered_custom_components(hass):\n    """Temporarily report loader discovery during CI diagnosis."""\n    print("DISCOVERED_CUSTOM_COMPONENTS", await async_get_custom_components(hass))\n\n\nasync def test_user_flow_creates_the_global_entry(hass):
+async def test_user_flow_creates_the_global_entry(hass):
     """The user flow creates exactly one titled global config entry."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN,
@@ -49,4 +49,3 @@ async def test_empty_entry_sets_up_and_unloads_without_entities(hass):
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
-

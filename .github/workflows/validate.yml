@@ -19,4 +19,4 @@ jobs:
       - run: ruff check .
       - name: Diagnose custom integration discovery
         run: python -c "import custom_components, pathlib, json; print('package:', custom_components.__file__, list(custom_components.__path__)); p=pathlib.Path(list(custom_components.__path__)[0])/'sensor_guardian'/'manifest.json'; print('manifest:', p, p.exists(), json.loads(p.read_text()) if p.exists() else None)"
-      - run: pytest -s -q
+      - run: pytest -o log_cli=true --log-cli-level=ERROR -q
