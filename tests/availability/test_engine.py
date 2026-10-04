@@ -37,7 +37,7 @@ def test_per_device_pattern_drives_degraded_stale_offline_thresholds():
         == "degraded"
     )
     assert (
-        evaluate_health(now=NOW, last_reported=NOW - timedelta(seconds=600), **kwargs)[
+        evaluate_health(now=NOW, last_reported=NOW - timedelta(seconds=200), **kwargs)[
             "state"
         ]
         == "stale"

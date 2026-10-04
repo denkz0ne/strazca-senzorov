@@ -45,7 +45,7 @@ def learn_report_profile(
         pattern = "learning"
     else:
         confidence = min(1.0, count / 12) * max(0.0, 1.0 - min(jitter or 0.0, 1.0))
-        pattern = "periodic" if (jitter or 0) <= 1.5 and count >= 4 else "irregular"
+        pattern = "periodic" if (jitter or 0) <= 0.5 and count >= 4 else "irregular"
     if not intervals:
         pattern = "event_only"
     return {
