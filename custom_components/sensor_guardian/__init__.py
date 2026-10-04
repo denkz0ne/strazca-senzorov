@@ -6,6 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
+from .storage import GuardianStorage
 
 
 def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
@@ -19,8 +20,13 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up an empty global integration entry."""
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {}
+    """Load the entry's validated, versioned domain data."""
+    storage = GuardianStorage(hass, entry.entry_id)
+    data = await storage.async_load()
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
+        "storage": storage,
+        "data": data,
+    }
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
     return True
 
