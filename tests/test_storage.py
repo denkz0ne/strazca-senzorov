@@ -34,6 +34,8 @@ async def test_save_and_reload_preserves_normalized_records(hass):
 
     await storage.async_save(data)
 
+    assert storage._atomic_writes is True
+    assert storage._private is True
     assert await GuardianStorage(hass, "entry-2").async_load() == data
 
 

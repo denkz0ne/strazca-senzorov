@@ -67,3 +67,11 @@ Incident: `incident_id`, affected device IDs, opened/updated/closed timestamps, 
 ## Shared dependencies and settings
 
 Dependencies map device → source integration/config entry → known coordinator/gateway/AP when available. Settings cover default timing and score thresholds, notification policy, startup grace, sampling, discovery and provider options. Defaults must be conservative and overridable.
+
+## Versioned persisted payload
+
+The first persisted payload uses Home Assistant Store envelope version `1`, minor version `1`. The root JSON object contains `models`, `devices`, `samples`, `cycles`, `availability_profiles`, `dependencies`, `incidents` and `settings`. Each collection stores normalized records with a stable required ID (`model_id`, `device_id`, `sample_id`, `cycle_id`, `profile_id`, `dependency_id`, or `incident_id`).
+
+`GuardianStorage` uses a private, atomically written Store per config entry. Recorder is not used for ongoing persistence. Known older minor payloads are migrated with defaults; malformed payloads fail validation without an automatic save. Unknown root extension fields are retained. Home Assistant rejects a future major Store version before Strážca writes anything, and Strážca rejects a future minor schema rather than interpreting it as current.
+
+The versioned `async_export()` envelope contains `version`, `minor_version` and validated `data`, without Home Assistant's internal storage key.
