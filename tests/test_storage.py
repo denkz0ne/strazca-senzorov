@@ -83,6 +83,7 @@ async def test_malformed_payload_is_preserved_without_overwrite(hass):
         storage._manager._files,
     )
     print("STORAGE_BYTES", original_bytes)
+    print("FETCH_RESULT", storage._manager.async_fetch(storage.key))
     print(
         "DIRECT_JSON",
         await hass.async_add_executor_job(load_json, storage.path),
