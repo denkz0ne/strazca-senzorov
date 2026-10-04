@@ -36,7 +36,7 @@ async def async_read_bundled_catalogue(
     hass: HomeAssistant, path: Path
 ) -> dict[str, Any]:
     """Read and decode a local JSON catalogue outside Home Assistant's event loop."""
-    contents = await hass.async_add_executor_job(path.read_text, encoding="utf-8")
+    contents = await hass.async_add_executor_job(path.read_text, "utf-8")
     decoded = json.loads(contents)
     if not isinstance(decoded, dict):
         raise ValueError("Bundled battery catalogue must contain a JSON object")
