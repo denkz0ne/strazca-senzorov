@@ -77,11 +77,11 @@
 
 **Interfaces:** typed versioned records for model definitions, tracked devices, samples, battery cycles, availability profiles, dependencies, incidents and settings as defined in `docs/DATA_MODEL.md`; storage owns load/save/migrate/export and does not call the Recorder for ongoing persistence.
 
-- [ ] Pin a JSON-serializable schema and fixtures for an empty installation and one device with history.
+- [x] Pin a JSON-serializable schema and fixtures for an empty installation and one device record.
 - [ ] Test initial load, atomic save/reload, malformed data preservation, idempotent migration and unknown future schema handling.
-- [ ] Implement the HA Store wrapper and pure record conversion/validation functions.
-- [ ] Run the scoped storage/migration tests; inspect that the original data remains recoverable on failure.
-- [ ] Commit.
+- [x] Implement the HA Store wrapper and pure record conversion/validation functions.
+- [x] Run the scoped storage/migration tests; inspect that the original data remains recoverable on failure.
+- [x] Commit.
 
 ## Task 3: Discovery, tracking configuration and Battery Notes importer
 

@@ -35,3 +35,12 @@ This log records completed work and verification for the staged development plan
 - Config entry is single-instance. Setup/unload creates no product entities and does not subscribe to `state_reported`.
 - Verification: GitHub Actions run `37221295119` passed on commit `f67f33f`; Ruff passed and pytest passed all four tests against HA Core 2026.9.4. Local Ruff and `git diff --check` also passed. HA pytest is not runnable natively in this Windows environment because HA imports POSIX `fcntl`; Linux CI is the authoritative run.
 - Task committed in the ongoing review branch. Next: Task 2, versioned storage and normalized domain records.
+
+## 2026-10-04 — Task 2 complete: versioned storage and domain records
+
+- Added TypedDict contracts for the model catalogue, tracked devices, battery samples/cycles, availability profiles, dependencies, incidents and settings, plus root payload validation with required stable IDs and extension-field retention.
+- Added private, atomically written Home Assistant Store version 1.1 per config entry. Setup loads validated data; save validates before persistence; export emits a portable versioned envelope without HA's internal key.
+- Added pure migration helpers for v1.0 → v1.1. Invalid payloads are rejected without a save; a future minor migration is rejected by Strážca and a future major version is rejected by Home Assistant Store.
+- Documented the persisted schema and migration behavior in `docs/DATA_MODEL.md`.
+- Verification: GitHub Actions run `37222830538` passed Ruff and all 13 HA pytest cases (config/discovery scaffold, storage, migration). Tests use the test plugin's `hass_storage` fixture, which exercises HA Store's migration and save paths; its storage backend is mocked, so actual filesystem atomic-write behavior is configured in Store and not physically validated by that fixture.
+- Task committed on the review branch. Next: Task 3, entity discovery and one-time Battery Notes import.
