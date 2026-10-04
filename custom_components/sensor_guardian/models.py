@@ -38,6 +38,9 @@ class DeviceRecord(TypedDict):
     area_id: NotRequired[str | None]
     source_integration: NotRequired[str | None]
     config_entry_id: NotRequired[str | None]
+    last_reported_at: NotRequired[str | None]
+    native_available: NotRequired[bool | None]
+    native_availability_state: NotRequired[str | None]
     transport: NotRequired[Transport]
     tracking_mode: NotRequired[TrackingMode]
     power_type: NotRequired[PowerType]
@@ -96,6 +99,9 @@ class AvailabilityProfile(TypedDict):
     explicit_availability: NotRequired[bool]
     pattern_confidence: NotRequired[float]
     updated_at: NotRequired[str | None]
+    report_timestamps: NotRequired[list[str]]
+    interval_count: NotRequired[int]
+    pattern: NotRequired[str]
 
 
 class DependencyRecord(TypedDict):

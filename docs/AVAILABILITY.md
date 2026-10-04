@@ -8,7 +8,9 @@ Health state and likely cause are separate outputs. An unavailable entity is evi
 
 Use explicit source availability when available. Otherwise learn reporting behavior per device from selected sentinel entities and report timestamps. Calculate robust intervals (median and upper quantiles plus dispersion); do not apply one global timeout. A device that reports only on events cannot be declared offline from silence unless another reliable source establishes expected activity.
 
-Candidate transition logic: healthy → degraded → stale → offline as missed expected reporting windows accumulate; recovering after a fresh report; healthy after a stability window. Threshold multipliers and stability windows remain tunable/open. Startup grace prevents alerts while HA and source integrations initialize.
+Candidate transition logic: healthy → degraded → stale → offline as missed per-device learned reporting windows accumulate; recovering after a fresh report; healthy after a stability window. The initial implementation uses 1.25× p90 for degraded, 1.5× p95 for stale and 3× p95 for offline, with a 30-second minimum. Explicit native availability takes precedence. Devices with event-only or low-confidence report patterns stay `unknown` on silence rather than being declared offline. Startup grace defaults to five minutes and recovery stability to two minutes; values are conservative implementation defaults to revisit against real devices.
+
+The collector observes only the selected sentinel IDs and any explicitly selected native availability entity. It listens separately for state changes and same-state `state_reported` events, then seeds the current states immediately after registering listeners. A bounded 512-report rolling timestamp window feeds each device's independent median/p90/p95 and jitter profile. Unload removes both filtered subscriptions and cancels pending persistence.
 
 ## Cause hypotheses
 

@@ -60,7 +60,7 @@ Estimator features are internal: current cycle age, previous cycle durations, ro
 
 ## Availability profile and incident
 
-Availability profile: selected sentinels, median/p90/p95 inter-report intervals, jitter/dispersion, explicit availability capability, learned pattern confidence and last update. Event-driven devices may have no reliable periodic pattern; silence alone cannot mark them offline when pattern confidence is low.
+Availability profile: selected sentinels, bounded rolling report timestamps, median/p90/p95 inter-report intervals, jitter/dispersion, explicit availability capability, learned pattern confidence and last update. Event-driven devices may have no reliable periodic pattern; silence alone cannot mark them offline when pattern confidence is low. Device records retain last report time and the latest explicit native availability state when selected.
 
 Incident: `incident_id`, affected device IDs, opened/updated/closed timestamps, health state, cause, confidence, severity, evidence list, shared parent/dependency, acknowledgement/snooze and notification state. Evidence records include feature, observed value, direction/weight, time and provider. Later evidence may revise the cause, retaining the audit trail.
 

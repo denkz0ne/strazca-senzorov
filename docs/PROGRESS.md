@@ -63,3 +63,11 @@ This log records completed work and verification for the staged development plan
 - Added tests for invalid/stale and jittery readings, checkpoints, replacement/recharge separation, cycle close/repeat, sparse/flat/steep traces, history fallback and abnormal drain. Initial Linux run `37224310488` caught timestamp-only empty observations being returned as stale; commit `22dc504` added an entry guard, and run `37224408150` passed Ruff and the full pytest suite. Native Windows pytest remains blocked by HA's POSIX `fcntl` dependency.
 - No entities or notifications were introduced in this task; estimator functions are pure and detailed output remains internal.
 - Next: Task 5, generic availability and report-pattern learner.
+
+## 2026-10-04 — Task 5 implementation: availability and report learner
+
+- Added a per-device rolling report learner with median/p90/p95 intervals, jitter, pattern confidence and explicit event-only/irregular patterns.
+- Added a separate health state engine: native unavailability wins; periodic profiles use per-device p90/p95 thresholds for degraded/stale/offline; startup grace and recovery stability are explicit; low-confidence/event-only silence remains unknown.
+- Added filtered listeners for state changes and same-state `state_reported` events for selected sentinel IDs only. Initial states are read after listener registration to avoid missing the first report; unload unregisters both listeners and cancels debounced persistence. Last-seen/profile data is kept in a bounded rolling window and persisted after a short debounce.
+- Updated the report-evidence ADR after checking HA Core 2026.9.4's actual helper signature: it has no `run_immediately` option, so Strážca subscribes first and seeds current states itself.
+- Added tests for stable/jittery/irregular/event-only patterns, startup grace, per-device timeout transitions, native-availability precedence, recovery, allow-list scoping and unsubscribe. Local Ruff and diff checks pass; GitHub Actions is pending. Native Windows pytest remains blocked by HA's POSIX `fcntl` dependency.

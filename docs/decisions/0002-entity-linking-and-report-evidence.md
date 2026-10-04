@@ -25,7 +25,7 @@ Verified against the official helper-integration guidance and the Core 2026.9.4 
 `State.last_reported` is updated for writes even when state and attributes are unchanged. `state_reported` has high volume. The observation collector will:
 
 - track only selected sentinel entities or provider-owned entities for which report-time evidence is useful;
-- use `hass.bus.async_listen(EVENT_STATE_REPORTED, callback, event_filter=..., run_immediately=True)` with a filter restricted to those entity IDs;
+- use `async_track_state_change_event` and `async_track_state_report_event` with the same selected entity IDs, then seed current states immediately after registering both listeners (the Core 2026.9.4 report helper itself has no `run_immediately` parameter);
 - avoid subscribing to every entity and avoid global event listeners;
 - treat `last_reported` as evidence that a source entity integration wrote a state, not proof that the physical device transmitted over the radio at that exact time;
 - use native availability and provider-specific evidence with greater weight where it is available;

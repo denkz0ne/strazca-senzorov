@@ -128,10 +128,10 @@
 
 **Interfaces:** collector observes only tracked sentinel/native-availability entities; profile learner returns interval distribution and pattern confidence; engine emits health transitions without assigning a cause.
 
-- [ ] Test stable, jittery, irregular and event-only input traces, including `unknown`/`unavailable` source states.
-- [ ] Add explicit-native-availability precedence, selected sentinel subscriptions with event filtering and required immediate initialization, startup grace and clean unsubscribe on unload.
-- [ ] Implement per-device degraded/stale/offline/recovering transitions and recovery stability window; do not use one global one-hour threshold.
-- [ ] Confirm disabled/noisy entities do not cause unbounded event work; run scoped availability checks and commit.
+- [x] Test stable, jittery, irregular and event-only input traces, including `unknown`/`unavailable` source states.
+- [x] Add explicit-native-availability precedence, selected sentinel subscriptions with event filtering and immediate state seeding, startup grace and clean unsubscribe on unload.
+- [x] Implement per-device degraded/stale/offline/recovering transitions and recovery stability window; do not use one global one-hour threshold.
+- [x] Confirm disabled/noisy entities do not cause unbounded event work; run scoped availability checks and commit.
 
 ## Task 6: Evidence, dependencies and clustered incidents
 
