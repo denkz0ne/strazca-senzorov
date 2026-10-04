@@ -23,6 +23,11 @@ async def test_user_flow_creates_the_global_entry(hass):
         context={"source": "user"},
     )
 
+    assert result["type"] is FlowResultType.FORM
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], user_input={}
+    )
+
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == "Strážca senzorov"
     assert result["data"] == {}
@@ -40,7 +45,7 @@ async def test_user_flow_aborts_if_an_entry_already_exists(hass):
     )
 
     assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "single_instance_allowed"
+    assert result["reason"] == "already_configured"
     assert len(hass.config_entries.async_entries(DOMAIN)) == 1
 
 
