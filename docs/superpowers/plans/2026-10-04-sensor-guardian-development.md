@@ -6,13 +6,14 @@
 
 **Architecture:** Start with a small helper integration and a generic HA evidence collector. Keep durable configuration, observations, profiles, replacement cycles and incidents in versioned Strážca storage. Separate availability state, battery estimation and cause classification; connect them through normalized evidence and incident records. Source entities stay authoritative, while a minimal HA entity/event/action layer serves automations and the panel serves detail.
 
-**Tech Stack:** Python custom integration for Home Assistant; HA config/device/entity registries, storage and event APIs; HA entity platforms and service actions; a bundled web frontend and HA panel registration (implementation mechanism to validate); GitHub Actions/HACS packaging. Choose compatible versions from the target HA environment during Task 0 rather than assuming a minimum.
+**Tech Stack:** Python custom integration for Home Assistant Core `2026.9+`; HA config/device/entity registries, storage and event APIs; HA entity platforms and service actions; a bundled web frontend and HA panel registration (implementation mechanism to validate); GitHub Actions/HACS packaging.
 
 **Spec:** `README.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/MIGRATION.md`, `docs/AVAILABILITY.md`, `docs/HOME_ASSISTANT.md`, `docs/FRONTEND.md`, `docs/ROADMAP.md`, `docs/OPEN_QUESTIONS.md`.
 
 ## Global Constraints
 
-- Integration domain is provisionally `sensor_guardian`; validate it before publishing the first manifest because the domain is costly to change.
+- Integration domain is `sensor_guardian`; validate custom-integration compatibility again before the first public release because the domain is costly to change.
+- Initial target is HA Core `2026.9.4`; proposed minimum is Core `2026.9`, pending compatibility validation before release.
 - Battery Notes is a one-time migration source only; Strážca must not require it at runtime and the user removes it only after verifying a successful import/deployment.
 - Runtime observations come from HA device entities, including battery %, native battery-low, voltage, availability, signal/link-quality and report-time evidence where available.
 - Never listen globally to high-volume `state_reported`; use a filtered subscription for explicitly selected entities and validate cost at the supported HA minimum.
@@ -42,11 +43,11 @@
 
 **Interfaces:** produces the supported HA version floor, a checked integration/manifest pattern, entity-to-device linking method, report-time listener constraints, storage API expectations and a decision on domain `sensor_guardian`.
 
-- [ ] Record the target Home Assistant Core/OS version from the intended deployment; if that host cannot be read, leave the minimum version unselected and document a bounded supported-version candidate matrix from official docs.
-- [ ] Verify the current helper entity linking pattern against the selected minimum and a current Core release; record exact imports/APIs and rejected legacy patterns.
-- [ ] Verify `last_reported`/`state_reported` semantics and filtered subscription requirements; record the intended selected-entity strategy and startup behavior.
-- [ ] Verify custom integration manifest, config flow and storage requirements for the chosen release range.
-- [ ] Decide which questions remain blockers for a production release; update the open-question list and roadmap.
+- [x] Record target Home Assistant Core version `2026.9.4` from `/config/.HA_VERSION`; set the initial minimum at Core `2026.9`.
+- [x] Verify helper linking against Core 2026.9.4 and current official guidance; record `homeassistant.helpers.device.async_entity_id_to_device` and reject source-device config-entry attachment.
+- [x] Verify `last_reported`/`state_reported` semantics and event filtering requirements; record selected-entity tracking and startup behavior.
+- [x] Verify custom integration manifest, config flow and storage requirements for the chosen release range.
+- [x] Decide open blockers for a production release; update this plan and the open-question list.
 
 **Exit check:** decisions cite versioned official Home Assistant documentation and identify any behavior requiring a running-instance probe. Do not ship a manifest until the domain and version floor are explicit.
 

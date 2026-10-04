@@ -5,8 +5,8 @@ These are intentionally unresolved; the design should not imply they are settled
 ## Identity and support
 
 - Confirm public English name (`Sensor Guardian`) alongside Slovak display name.
-- Confirm permanent HA domain (`sensor_guardian`) before first release.
-- Select minimum supported Home Assistant version after checking helper-device linking and observation APIs.
+- ~~Confirm HA domain.~~ `sensor_guardian` selected for the initial implementation; recheck the custom-integration ecosystem before first release.
+- ~~Select HA minimum.~~ Target Core `2026.9.4`, initial support floor Core `2026.9`; run compatibility validation against this minimum and a current Core build before release.
 - Decide whether first delivery targets HACS custom integration only and what frontend packaging/update method to use.
 
 ## Data and migration
@@ -19,7 +19,7 @@ These are intentionally unresolved; the design should not imply they are settled
 
 ## Availability and diagnosis
 
-- Which entity `last_reported` hooks/APIs are supported at the chosen HA minimum, and what event volume is acceptable?
+- ~~Which report-time API is supported?~~ Use filtered `state_reported` with immediate initialization only for selected entities; verify load and physical-device interpretation with provider adapters.
 - How to choose sentinel entities per integration without missing silent reports or processing noisy entities?
 - Initial stale/offline multipliers, startup grace and recovery stability window?
 - Which dependencies can each provider expose (coordinator, AP, gateway, config entry)?

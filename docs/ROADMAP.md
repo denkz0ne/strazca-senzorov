@@ -4,7 +4,7 @@ Order is provisional and intended to reduce rework by validating data access bef
 
 ## Stage 0 — specification and compatibility probe
 
-Set domain/display name, supported HA minimum, storage strategy, entity contract and migration scope. Inspect actual target HA APIs and Battery Notes version/storage. Validate device linking, `last_reported`/selected report evidence, Recorder/statistics read access, and disabled signal entity handling.
+Set domain/display name, supported HA minimum, storage strategy, entity contract and migration scope. Inspect actual target HA APIs and Battery Notes version/storage. Validate device linking, `last_reported`/selected report evidence, Recorder/statistics read access, and disabled signal entity handling. Domain and initial Core floor are recorded in `docs/decisions/0001-ha-compatibility.md`; helper linking and report evidence are in `docs/decisions/0002-entity-linking-and-report-evidence.md`.
 
 ## Stage 1 — integration scaffold
 

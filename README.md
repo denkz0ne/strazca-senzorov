@@ -37,11 +37,13 @@ The integration is intended to help answer:
 
 Working display name: **Strážca senzorov** (English: **Sensor Guardian**).
 
-Working integration domain: `sensor_guardian`. This is a proposal to validate against Home Assistant conventions before the first integration release; changing a domain after release is costly.
+Integration domain: `sensor_guardian`.
+
+Compatibility target: the connected instance reports Home Assistant Core `2026.9.4`; the initial support floor is Core `2026.9`, pending release compatibility runs.
 
 ## Status
 
-This repository currently contains the product/design brief. It does not yet contain an installable integration. The architecture, schemas and thresholds below are design proposals; values marked as open must be settled during implementation or validation.
+Development is underway in stages tracked by [GitHub milestone MVP Development](https://github.com/denkz0ne/strazca-senzorov/milestone/1). See the [detailed plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress report](docs/PROGRESS.md). Until the scaffold is complete, this repository does not contain an installable integration. Thresholds and unclosed design questions remain proposals.
 
 ## Principles
 
