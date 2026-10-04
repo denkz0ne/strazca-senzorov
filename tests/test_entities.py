@@ -66,7 +66,10 @@ async def test_minimal_entities_link_to_source_device_and_unload(hass, hass_stor
         er.async_get(hass), entry.entry_id
     )
     assert len(entries_after_unload) == 3
-    assert all(hass.states.get(item.entity_id) is None for item in entries_after_unload)
+    assert all(
+        hass.states.get(item.entity_id).state == "unavailable"
+        for item in entries_after_unload
+    )
 
 
 async def test_problem_status_and_incident_event_transition_are_deduplicated(

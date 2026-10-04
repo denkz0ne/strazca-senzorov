@@ -41,7 +41,7 @@ class _GuardianBinarySensor(BinarySensorEntity):
 
     def __init__(self, hass: HomeAssistant, device: dict, group: list) -> None:
         self.device = device
-        self.group = group
+        self._runtime_entities = group
         self.device_entry = None
         refs = device.get("entity_refs", {})
         source_entity = (
@@ -58,7 +58,7 @@ class _GuardianBinarySensor(BinarySensorEntity):
         )
         if source_entity:
             self.device_entry = async_entity_id_to_device(hass, source_entity)
-        group.append(self)
+        self._runtime_entities.append(self)
 
     @property
     def available(self) -> bool:
