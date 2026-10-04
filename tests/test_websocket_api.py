@@ -234,12 +234,20 @@ async def test_panel_can_track_a_candidate_and_attach_runtime_entities(
     )
     response = await client.receive_json()
     assert response["success"] is True
-    await hass.async_block_till_done()
     runtime = hass.data["sensor_guardian"][entry.entry_id]
     assert runtime["data"]["devices"][0]["device_id"] == device.id
-    guardian_entities = er.async_entries_for_config_entry(
-        er.async_get(hass), entry.entry_id
-    )
+    # Platform callbacks enqueue entity registration on the HA loop after the
+    # WebSocket command returns; wait for the registry, not just the command.
+    import asyncio
+
+    for _ in range(50):
+        await hass.async_block_till_done()
+        guardian_entities = er.async_entries_for_config_entry(
+            er.async_get(hass), entry.entry_id
+        )
+        if len(guardian_entities) == 3:
+            break
+        await asyncio.sleep(0.02)
     assert len(guardian_entities) == 3
 
     events = []

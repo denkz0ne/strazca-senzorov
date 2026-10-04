@@ -183,7 +183,7 @@ def _record_current_device(
         payload = event_payload(device)
         payload["battery_level"] = current_level
         payload["remaining_days_range"] = estimate.get("remaining_days_range")
-        hass.bus.async_fire(BATTERY_ATTENTION_EVENT, payload)
+        hass.add_job(hass.bus.async_fire, BATTERY_ATTENTION_EVENT, payload)
     for entity in runtime.get("entities", {}).get(device_id, []):
         entity.async_write_ha_state()
     runtime.get("schedule_save", lambda: None)()
