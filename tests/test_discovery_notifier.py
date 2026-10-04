@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -16,7 +16,7 @@ async def test_notice_is_one_native_badge_with_exact_pending_count(
         "async_discover_devices",
         AsyncMock(return_value=[{"device_id": str(i)} for i in range(count)]),
     )
-    create = AsyncMock()
+    create = MagicMock()
     monkeypatch.setattr(discovery_notifier, "async_create", create)
 
     assert await discovery_notifier.async_refresh_discovery_notice(hass) == count
@@ -33,7 +33,7 @@ async def test_notice_is_dismissed_when_pending_queue_is_empty(hass, monkeypatch
     monkeypatch.setattr(
         discovery_notifier, "async_discover_devices", AsyncMock(return_value=[])
     )
-    dismiss = AsyncMock()
+    dismiss = MagicMock()
     monkeypatch.setattr(discovery_notifier, "async_dismiss", dismiss)
 
     assert await discovery_notifier.async_refresh_discovery_notice(hass) == 0
