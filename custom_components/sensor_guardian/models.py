@@ -21,6 +21,7 @@ class ModelRecord(TypedDict):
     model_ids: NotRequired[list[str]]
     hardware_versions: NotRequired[list[str]]
     aliases: NotRequired[list[str]]
+    match_rules: NotRequired[list[dict[str, str]]]
     default_battery_type: NotRequired[str | None]
     default_battery_quantity: NotRequired[int | None]
     power_hint: NotRequired[PowerType]

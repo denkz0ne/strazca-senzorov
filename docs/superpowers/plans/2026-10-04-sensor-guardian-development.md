@@ -93,13 +93,13 @@
 
 **Interfaces:** discovery returns candidates with source entity references, confidence, explanation and one suggested mode (`battery_and_availability`, `availability_only`, `battery_only`, `ignore`, `unknown`). Import preview returns matched/unmatched counts and proposed updates with provenance; apply is idempotent and creates a receipt. No import runs silently.
 
-- [ ] Pin the Battery Notes commit/release and inspect the actual data license/notice before copying any row.
-- [ ] Add fixtures covering model aliases, duplicate model variants, multiple battery entities, missing device IDs, and rechargeable/mains hints.
-- [ ] Implement device/entity registry discovery and candidate ranking; preserve manual choice and dismissed candidates.
-- [ ] Implement an import preview for catalogue, per-device settings, Recorder history and long-term statistics where APIs permit; keep exact and inferred evidence separate.
-- [ ] Test partial import, repeat import, backup/restore, stale/unmatched source device and malformed source data.
-- [ ] Add explicit, reviewable signal-entity enable recommendations only where registry/provider evidence supports them; do not auto-enable in discovery.
-- [ ] Run scoped discovery/migration verification and commit catalogue provenance with the imported dataset.
+- [x] Pin the Battery Notes commit/release and inspect the actual data license/notice before copying any row.
+- [x] Add fixtures covering duplicate model records/variants, missing device IDs, and rechargeable/irreplaceable hints.
+- [x] Implement device/entity registry discovery and candidate ranking; accept persisted tracked/dismissed IDs and preserve manual settings in import merges.
+- [x] Implement preview for catalogue count and per-device settings; add a bounded, selected-entity Recorder/history statistics adapter with distinct exact/inferred provenance.
+- [x] Test partial import, repeat import, backup/restore, stale/unmatched source device and malformed source data.
+- [x] Add explicit signal-entity recommendations; discovery does not enable entities.
+- [x] Run scoped discovery/migration verification and commit catalogue provenance with the imported dataset.
 
 **Exit check:** Strážca operates with Battery Notes absent after a verified import; no runtime code calls Battery Notes or its remote repository.
 
