@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from homeassistant.helpers.storage import Store, UnsupportedStorageVersionError
@@ -14,15 +15,16 @@ from custom_components.sensor_guardian.models import (
 from custom_components.sensor_guardian.storage import GuardianStorage
 
 
-async def _write_file(hass, path, content: str) -> None:
+async def _write_file(hass, path: str | Path, content: str) -> None:
     """Write fixture data without blocking Home Assistant's event loop."""
+    path = Path(path)
     await hass.async_add_executor_job(path.parent.mkdir, parents=True, exist_ok=True)
     await hass.async_add_executor_job(path.write_text, content, "utf-8")
 
 
-async def _read_bytes(hass, path) -> bytes:
+async def _read_bytes(hass, path: str | Path) -> bytes:
     """Read fixture bytes without blocking Home Assistant's event loop."""
-    return await hass.async_add_executor_job(path.read_bytes)
+    return await hass.async_add_executor_job(Path(path).read_bytes)
 
 
 async def test_empty_storage_loads_defaults_without_writing(hass):
@@ -30,7 +32,7 @@ async def test_empty_storage_loads_defaults_without_writing(hass):
     storage = GuardianStorage(hass, "entry-1")
 
     assert await storage.async_load() == empty_store_data()
-    assert not storage.path.exists()
+    assert not Path(storage.path).exists()
 
 
 async def test_save_and_reload_preserves_normalized_records(hass):
@@ -85,7 +87,7 @@ async def test_minor_migration_is_idempotent_and_persisted(hass):
 
     assert loaded == empty_store_data()
     assert await storage.async_load() == loaded
-    raw_file = await hass.async_add_executor_job(storage.path.read_text, "utf-8")
+    raw_file = await hass.async_add_executor_job(Path(storage.path).read_text, "utf-8")
     saved = json.loads(raw_file)
     assert saved["minor_version"] == 1
 
@@ -106,7 +108,7 @@ async def test_future_schema_is_rejected_without_changing_file(hass):
     with pytest.raises(UnsupportedStorageVersionError):
         await storage.async_load()
 
-    contents = await hass.async_add_executor_job(storage.path.read_text, "utf-8")
+    contents = await hass.async_add_executor_job(Path(storage.path).read_text, "utf-8")
     assert contents == future_file
 
 
