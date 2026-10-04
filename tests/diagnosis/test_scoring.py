@@ -52,10 +52,8 @@ def test_weak_or_conflicting_evidence_stays_unknown():
             [
                 {"feature": "battery_level", "value": 3},
                 {"feature": "native_battery_low", "value": True},
-                {"feature": "signal_trend", "value": "degrading"},
-                {"feature": "rssi_dbm", "value": -95},
-                {"feature": "linkquality", "value": 20},
-                {"feature": "recovered_without_battery_change", "value": True},
+                {"feature": "coordinator_unavailable", "value": True},
+                {"feature": "shared_outage_count", "value": 3},
             ]
         )
     )
