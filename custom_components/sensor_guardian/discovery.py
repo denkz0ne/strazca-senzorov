@@ -146,7 +146,7 @@ async def async_discover_devices(
                 )
             )
     result: list[dict[str, Any]] = []
-    for device in devices:
+    for device in devices.devices:
         if device.id in tracked or device.id in dismissed:
             continue
         matching = by_device.get(device.id, [])
