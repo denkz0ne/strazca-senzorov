@@ -4,9 +4,16 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import EVENT_STATE_REPORTED
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
+from homeassistant.loader import async_get_custom_components
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 DOMAIN = "sensor_guardian"
+
+
+async def test_custom_component_is_discovered(hass):
+    """The Home Assistant loader finds the packaged custom integration."""
+    integrations = await async_get_custom_components(hass)
+    assert DOMAIN in integrations
 
 
 async def test_user_flow_creates_the_global_entry(hass):
