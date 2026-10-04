@@ -55,9 +55,11 @@ This log records completed work and verification for the staged development plan
 - Verification: local Ruff and `git diff --check` pass; GitHub Actions run `37223955627` passed Ruff and the full pytest suite. Native Windows pytest remains unavailable because the HA pytest plugin imports POSIX `fcntl`. No HA instance or Battery Notes data was modified.
 - Next: Task 4, robust battery samples, replacement detection and per-device lifetime estimates.
 
-## 2026-10-04 — Task 4 implementation: battery lifecycle and estimator
+## 2026-10-04 — Task 4 complete: battery lifecycle and estimator
 
 - Added normalization for percentage/voltage/timestamps, stale and invalid readings, native-low transitions, low-level markers and bounded meaningful-sample checkpoints.
 - Added reset-jump replacement candidates requiring user confirmation for replaceable cells; mains devices are excluded and rechargeable increases are represented as charging. Confirmed replacements close prior open cycles, store selected battery type/quantity and are idempotent.
 - Added conservative median pairwise drain estimates with a minimum four valid samples over seven days. Estimates return a range and reason codes; sparse history returns unknown, completed same-device cycles allow only low-confidence fallback, and abnormal drain is compared to that device's past cycle rate. Coarse decile-only readings are marked low confidence.
-- Added tests for invalid/stale and jittery readings, checkpoints, replacement/recharge separation, cycle close/repeat, sparse/flat/steep traces, history fallback and abnormal drain. Ruff and diff checks pass locally; Linux CI run is pending after push. Native Windows pytest remains blocked by HA's POSIX `fcntl` dependency.
+- Added tests for invalid/stale and jittery readings, checkpoints, replacement/recharge separation, cycle close/repeat, sparse/flat/steep traces, history fallback and abnormal drain. Initial Linux run `37224310488` caught timestamp-only empty observations being returned as stale; commit `22dc504` added an entry guard, and run `37224408150` passed Ruff and the full pytest suite. Native Windows pytest remains blocked by HA's POSIX `fcntl` dependency.
+- No entities or notifications were introduced in this task; estimator functions are pure and detailed output remains internal.
+- Next: Task 5, generic availability and report-pattern learner.
