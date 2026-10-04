@@ -29,6 +29,8 @@ def normalize_reading(
     stale_after: timedelta = timedelta(days=7),
 ) -> dict[str, Any] | None:
     """Normalize reading units and flag unusable/stale observations."""
+    if level_percent is None and voltage is None and native_low is None:
+        return None
     parsed = _timestamp(timestamp)
     if parsed is None:
         return None
