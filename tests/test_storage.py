@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+from functools import partial
 from pathlib import Path
 
 import pytest
-from homeassistant.helpers.storage import Store, UnsupportedStorageVersionError
+from homeassistant.helpers.storage import UnsupportedStorageVersionError
 
 from custom_components.sensor_guardian.models import (
     StorageDataError,
@@ -18,7 +19,9 @@ from custom_components.sensor_guardian.storage import GuardianStorage
 async def _write_file(hass, path: str | Path, content: str) -> None:
     """Write fixture data without blocking Home Assistant's event loop."""
     path = Path(path)
-    await hass.async_add_executor_job(path.parent.mkdir, parents=True, exist_ok=True)
+    await hass.async_add_executor_job(
+        partial(path.parent.mkdir, parents=True, exist_ok=True)
+    )
     await hass.async_add_executor_job(path.write_text, content, "utf-8")
 
 
@@ -57,7 +60,18 @@ async def test_malformed_payload_is_preserved_without_overwrite(hass):
     """Invalid application data raises and leaves the original store untouched."""
     storage = GuardianStorage(hass, "entry-3")
     raw_payload = {"devices": "not-a-list"}
-    await Store.async_save(storage, raw_payload)
+    await _write_file(
+        hass,
+        storage.path,
+        json.dumps(
+            {
+                "version": 1,
+                "minor_version": 1,
+                "key": storage.key,
+                "data": raw_payload,
+            }
+        ),
+    )
     original_bytes = await _read_bytes(hass, storage.path)
 
     with pytest.raises(StorageDataError):
