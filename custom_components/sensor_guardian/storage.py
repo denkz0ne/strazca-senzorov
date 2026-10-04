@@ -44,7 +44,9 @@ class GuardianStorage(Store[dict[str, Any]]):
 
     async def async_load(self) -> GuardianData:
         """Load and validate the payload, returning defaults for a new install."""
+        print("STORE_BEFORE", self.path, self._data, self._load_empty)
         data = await super().async_load()
+        print("STORE_AFTER", data)
         if data is None:
             return empty_store_data()
         return validate_store_data(data)
