@@ -41,3 +41,4 @@ These are intentionally unresolved; the design should not imply they are settled
 - ~~Signal entity enabling policy.~~ Recommend useful disabled signal entities; do not enable automatically.
 - ~~Panel framework and role behavior.~~ Self-hosted custom panel, authenticated WebSocket API, administrator-only in the MVP. First UI is Slovak; broader localization can follow.
 - Should battery stock management be part of initial release or a later enhancement?
+- Device-list identity, bulk selection/filters and original integration display are tracked in [#12 — device list](https://github.com/denkz0ne/strazca-senzorov/issues/12). Show friendly name, HA area, and `ZB###`/`ZBT###` only if present in the name; otherwise leave the ID cell blank. Current discovery cards can expose opaque registry IDs, so readable identification is a release usability requirement. The Overview must show the source integration separately from power/transport.

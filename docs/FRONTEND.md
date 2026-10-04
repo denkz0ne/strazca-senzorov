@@ -10,7 +10,27 @@ The side panel is for detailed management and diagnosis; automations use the sma
 4. **Incidents** — grouped and individual incident timeline, current/previous cause, confidence/evidence, acknowledgement, confirmation/correction and recovery.
 5. **Settings** — notification policy, startup grace, stale/offline thresholds, sampling, model catalogue management, import status, provider support and diagnostics.
 
-Tabs may be combined or reordered after usability work; these five areas capture current needs. Panel remains useful with generic provider data and must label unsupported diagnostics clearly.
+The implemented panel has these five tabs. The detail drawer, household battery stock, advanced filters and some diagnostic affordances above remain design goals unless visible in the current implementation. Panel remains useful with generic provider data and must label unsupported diagnostics clearly.
+
+## Observed current limitations
+
+- The **Devices** discovery tab can show internal HA registry IDs as card titles when a readable name is absent from the current API record. Device/entity context should be made more legible before stable release; see [open questions](OPEN_QUESTIONS.md).
+- Overview and Incidents are empty until the user explicitly tracks candidates and incidents occur; discovery by itself does not create tracked records.
+- The visible panel is a first usable management surface, not the final detailed analytics dashboard. Do not document planned controls as shipped until they appear in code and pass UI review.
+
+## Requested compact lists (not implemented yet)
+
+These requests are tracked for later UI work: [#11 — battery table](https://github.com/denkz0ne/strazca-senzorov/issues/11), [#12 — device identity and diagnostics table](https://github.com/denkz0ne/strazca-senzorov/issues/12), and [#13 — new-device discovery notification and pending queue](https://github.com/denkz0ne/strazca-senzorov/issues/13).
+
+The section tabs and search row should remain sticky while long panel lists scroll, without hiding headings or keyboard focus. This is tracked in [#14](https://github.com/denkz0ne/strazca-senzorov/issues/14) and is not implemented yet.
+
+The **Batteries** table should use one compact row per tracked battery device and show readable device name, the optional `ZB###`/`ZBT###` identifier parsed from the device name, battery type/quantity, current level, last replacement, concise attention state and remaining-life estimate only when supported by enough history. If the name has no recognized identifier, leave that cell blank; do not derive it from the HA registry ID. For example, `zbt05-kupelna` can display `ZBT05`. Sort/search should cover useful columns; detailed cycles and evidence should stay in a secondary detail view.
+
+The **Devices** list should identify entries from the HA display name and assigned area, plus a `ZB###` or `ZBT###` identifier only when it is present in the name. Missing identifiers remain blank. Show the source HA integration separately from power type/transport. Include available battery, voltage/low flag, battery type/count, replacement, estimate, signal/LQI/RSSI, last-report, tracking mode and availability/cause information. Use compact rows with expandable details for less common fields. Add checkboxes for bulk tracking with explicit confirmation and filters by integration, power source, area and tracking/availability. Do not show an opaque registry hash as the primary label, invent missing values, or enable disabled signal entities automatically.
+
+The **Overview** list should also show the original HA integration for every tracked device, not only the Strážca health state. This is part of issue [#12](https://github.com/denkz0ne/strazca-senzorov/issues/12) and is not yet implemented in the current overview serializer.
+
+Discovery should persist a deduplicated pending queue, update a sidebar count when new HA devices are found, and remove tracked/ignored entries from that queue and the candidate list. Detection and resolution state must survive restart. A device is never tracked without the user's explicit choice.
 
 ## MVP packaging and API
 

@@ -112,3 +112,21 @@ This log records completed work and verification for the staged development plan
 - Final Task 8 feature verification: GitHub Actions run `37229725088`, commit `b0e3376`, Python job passed Ruff, Node syntax, both JSON files and all 63 pytest cases. HACS Action also passed metadata, topics, HACS JSON and integration manifest checks; it reports one repository-wide blocker: no source-code license. Task 8 issue #9 is complete; Task 9 remains open pending the owner's license choice and live release checks.
 - Read-only environment probe reconfirmed the connected Home Assistant Core is `2026.9.4` and HACS is installed at `2.0.5`. No component files were installed or HA settings changed; actual panel rendering and HACS installation/update remain unverified.
 - Repository owner selected MIT on 2026-10-04. Added the repository-level `LICENSE`; the existing `THIRD_PARTY_DATA.md` continues to retain the separate upstream catalogue attribution/license notice. HACS CI rerun is pending.
+
+### Task 9 CI follow-up
+
+- GitHub Actions run `37231688845` passed the Python job: Ruff, JavaScript syntax, JSON validation and all 63 pytest cases.
+- HACS Action still failed its license check because GitHub reports repository license metadata from the default `main` branch, where the MIT `LICENSE` has not been merged. The MIT file exists on `codex/sensor-guardian-mvp`; no changes were made directly to `main`. This is a branch/default-metadata condition, not a missing LICENSE on the development branch.
+- No release tag was created. Clean HACS install/update and full live HA validation remain open.
+
+## 2026-10-04 — documentation coverage and live first-run review
+
+- Added a Slovak user guide for first run, candidate tracking, battery handling, one-time Battery Notes import, entities/events/actions, backup/upgrade and troubleshooting; added a developer guide for module boundaries, local/CI checks, storage/schema, observation constraints, WebSocket API and hotfix/release work.
+- Added `DOCUMENTATION_POLICY.md` and a GitHub pull request template requiring docs/changelog review and verifiable CI/live evidence with every change. Linked the guides from README and distinguished shipped behavior from roadmap ideas.
+- Reviewed the user's live panel read-only. The Devices tab presents discovery candidates; Overview showed zero tracked records. This is consistent with discovery requiring an explicit Track action. Candidate cards showed opaque registry IDs rather than friendly names; recorded as a user-facing limitation in FRONTEND/OPEN_QUESTIONS and README.
+- Connector snapshots simultaneously reported zero config entries/entities despite returning the installed component files and the browser displaying the working panel. The visible browser state is the direct evidence used for the panel review; connector counts are not treated as proof that setup is absent.
+- Recorded the requested compact battery table in [issue #11](https://github.com/denkz0ne/strazca-senzorov/issues/11) and the device table in [issue #12](https://github.com/denkz0ne/strazca-senzorov/issues/12), including readable identity/area, ZB/ZBT pattern, original HA integration, key diagnosis, filters and checkbox bulk tracking. No panel code was changed; `FRONTEND.md` labels them as future work.
+- Extended issue #11 to extract/display optional `ZB###` and `ZBT###` identifiers from the readable device name (e.g. `zbt05-kupelna` → `ZBT05`), leaving the cell blank when neither pattern is present.
+- Recorded the new-device sidebar badge, persistent pending discovery queue and automatic hiding of tracked/ignored devices in [issue #13](https://github.com/denkz0ne/strazca-senzorov/issues/13). No implementation was made.
+- Recorded sticky section navigation and search while scrolling, including responsive and keyboard-accessibility checks, in [issue #14](https://github.com/denkz0ne/strazca-senzorov/issues/14). No implementation was made.
+- No changes were made to Home Assistant. Documentation consistency, links, formatting and CI are pending this documentation commit.

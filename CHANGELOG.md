@@ -4,6 +4,9 @@ Changes are recorded here for tagged releases. There is no published release yet
 
 ## Unreleased — MVP development
 
+- Add a complete Slovak user guide, developer guide and documentation/versioning policy.
+- Add a pull request checklist to keep documentation, changelog, manifest version and hotfix evidence in step with code.
+- Document first-run discovery behavior and the current opaque discovery-card ID limitation.
 - Add device availability and battery lifecycle monitoring.
 - Add evidence-based outage diagnosis and incident grouping.
 - Add minimal automation entities, actions and transition events.

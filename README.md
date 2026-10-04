@@ -1,6 +1,6 @@
 # Strážca senzorov
 
-**Strážca senzorov** is a planned Home Assistant custom integration for monitoring device availability, battery condition and likely outage causes. Its primary record is the HA device; battery management is one capability of that device, not the whole product.
+**Strážca senzorov** is a Home Assistant custom integration for monitoring device availability, battery condition and likely outage causes. Its primary record is the HA device; battery management is one capability of that device, not the whole product. The current integration and panel are implemented on the development branch, but the project has no stable tagged release and live behavior still needs release validation.
 
 The integration is intended to help answer:
 
@@ -20,6 +20,10 @@ The integration is intended to help answer:
 - Mains-powered devices are monitored for availability and incidents; they do not receive battery estimates.
 
 ## Documentation map
+
+- [Používateľský návod](docs/USER_GUIDE.md) — first setup, tracking, battery import, automation and troubleshooting
+- [Vývojársky návod](docs/DEVELOPER_GUIDE.md) — development checks, module map, storage/API contracts and releases
+- [Documentation policy](docs/DOCUMENTATION_POLICY.md) — required docs/changelog updates for features and hotfixes
 
 - [Architecture](docs/ARCHITECTURE.md) — component boundaries and data flow
 - [Data model](docs/DATA_MODEL.md) — device, battery cycle, sample, profile and incident records
@@ -43,11 +47,11 @@ Integration domain: `sensor_guardian`.
 
 Compatibility target: the connected instance reports Home Assistant Core `2026.9.4`; the initial support floor is Core `2026.9`, pending release compatibility runs.
 
-## Status
+## Current behavior and status
 
 Development is underway in stages tracked by [GitHub milestone MVP Development](https://github.com/denkz0ne/strazca-senzorov/milestone/1). See the [detailed plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress report](docs/PROGRESS.md). The development branch is not a tagged release, and live HA/HACS installation still needs release validation. Some thresholds and design questions remain proposals.
 
-There is no published release yet. For development, copy `custom_components/sensor_guardian` into Home Assistant's `custom_components` directory and restart Home Assistant. HACS packaging metadata is included for validation, but clean HACS install/update and live panel checks remain release gates. Do not remove Battery Notes until its import has been previewed, backed up, applied and verified in Strážca.
+There is no published release yet. For development, copy `custom_components/sensor_guardian` into Home Assistant's `custom_components` directory and restart Home Assistant. On first open, use **Devices** to review candidates and explicitly choose **Track**; discovery alone does not track devices, so Overview and Incidents may be empty. Current discovery cards may show the internal registry ID rather than a readable device name; this is recorded as a usability limitation. HACS packaging metadata is included for validation, but clean HACS install/update and live panel checks remain release gates. Do not remove Battery Notes until its import has been previewed, backed up, applied and verified in Strážca.
 
 ## Principles
 

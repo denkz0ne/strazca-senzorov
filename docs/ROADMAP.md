@@ -1,6 +1,21 @@
 # Development stages
 
-Order is provisional and intended to reduce rework by validating data access before investing in the panel.
+The original sequence was a planning order. Implementation was delivered through GitHub tasks 0–9, and responsibilities moved between tasks as HA API probes and tests exposed dependencies. Current state is recorded below; completed implementation does not mean release validation is complete.
+
+## Current stage status
+
+| Stage | State | Evidence / remaining work |
+| --- | --- | --- |
+| 0 — specification and compatibility | Implemented | ADRs record the Core floor, device linking and filtered report evidence. Re-run compatibility checks before release. |
+| 1 — integration scaffold and storage | Implemented | Config flow, setup/unload, schema 1.1, translations and tests are present. |
+| 2 — Battery Notes import and model catalogue | Implemented | One-time preview/apply, backup/receipt, provenance and bundled converted catalogue; live import and restore remain unverified. |
+| 3 — battery lifecycle and estimate | Implemented | Samples, replacement cycles and conservative per-device estimator; real-world estimate quality still needs observation. |
+| 4 — discovery and tracking | Implemented, UX follow-up open | Candidate discovery, recommendations and tracking decisions work. Human-readable compact lists and persistent new-device sidebar alerts are tracked in [#11](https://github.com/denkz0ne/strazca-senzorov/issues/11), [#12](https://github.com/denkz0ne/strazca-senzorov/issues/12) and [#13](https://github.com/denkz0ne/strazca-senzorov/issues/13). |
+| 5 — availability and reporting learner | Implemented | Filtered source listeners and learned profiles; provider-specific validation and false-positive calibration remain. |
+| 6 — cause evidence and incident clustering | Implemented | Rule points, unknown threshold and incident revisions are covered in CI; labeled live incident calibration remains. |
+| 7 — entities, actions and events | Implemented | Compact entities and version-1 actions/events exist; release compatibility review remains. |
+| 8 — panel and authenticated API | Implemented, live smoke review partial | The installed panel opened; discovery candidates and empty Overview were observed. HACS clean-install/update, import workflow and responsive/accessibility checks remain. |
+| 9 — release hardening | In progress | See `docs/RELEASE_CHECKLIST.md`; no stable tag/release has been made. |
 
 ## Stage 0 — specification and compatibility probe
 
