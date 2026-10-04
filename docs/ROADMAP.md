@@ -10,12 +10,12 @@ The original sequence was a planning order. Implementation was delivered through
 | 1 — integration scaffold and storage | Implemented | Config flow, setup/unload, schema 1.1, translations and tests are present. |
 | 2 — Battery Notes import and model catalogue | Implemented | One-time preview/apply, backup/receipt, provenance and bundled converted catalogue; live import and restore remain unverified. |
 | 3 — battery lifecycle and estimate | Implemented | Samples, replacement cycles and conservative per-device estimator; real-world estimate quality still needs observation. |
-| 4 — discovery and tracking | Implemented on PR #15; CI passed | Compact battery/device/overview tables, name/area identity, selection filters and native discovery notices are implemented. GitHub Actions run `37235438288` passed Ruff, JavaScript/JSON validation, all 73 tests and the HACS action. Per-panel badge remains unsupported by HA's public API; live HA pairing/viewport review remains pending. |
+| 4 — discovery and tracking | Implemented and merged in PR #15 | Compact battery/device/overview tables, name/area identity, selection filters and native discovery notices are implemented. Main run `37237538284` passed Ruff, JavaScript/JSON validation, all 76 tests and the HACS action. HA's public API has no per-panel numeric badge; live HA pairing/viewport review remains pending. |
 | 5 — availability and reporting learner | Implemented | Filtered source listeners and learned profiles; provider-specific validation and false-positive calibration remain. |
 | 6 — cause evidence and incident clustering | Implemented | Rule points, unknown threshold and incident revisions are covered in CI; labeled live incident calibration remains. |
 | 7 — entities, actions and events | Implemented | Compact entities and version-1 actions/events exist; release compatibility review remains. |
 | 8 — panel and authenticated API | Implemented, live smoke review partial | Compact tables, sticky section/search controls and discovery notice pass local syntax/lint/frontend asset checks; CI and actual HA browser layout/HACS clean-install/update remain release checks. |
-| 9 — release hardening | In progress | See `docs/RELEASE_CHECKLIST.md`; no stable tag/release has been made. |
+| 9 — release hardening | Repository/CI ready; live validation pending | Main is HACS-trackable and CI is green. The owner still needs to update HA, inspect fresh logs, validate import/restore/restart and review the live panel. See `docs/RELEASE_CHECKLIST.md`; no stable tag/release has been made. |
 
 ## Stage 0 — specification and compatibility probe
 
