@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 from homeassistant.helpers.storage import UnsupportedStorageVersionError
+from homeassistant.util.json import load_json
 
 from custom_components.sensor_guardian.models import (
     StorageDataError,
@@ -82,6 +83,10 @@ async def test_malformed_payload_is_preserved_without_overwrite(hass):
         storage._manager._files,
     )
     print("STORAGE_BYTES", original_bytes)
+    print(
+        "DIRECT_JSON",
+        await hass.async_add_executor_job(load_json, storage.path),
+    )
 
     with pytest.raises(StorageDataError):
         await storage.async_load()
