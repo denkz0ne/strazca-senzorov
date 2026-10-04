@@ -56,7 +56,7 @@ Sample: `timestamp`, `level_percent`, `voltage`, `native_low`, source entity IDs
 
 Cycle: `cycle_id`, `device_id`, start/end timestamps, battery type and quantity, optional brand/chemistry, initial/final level, lifetime, replacement reason and confidence/provenance. Provenance values include `user_confirmed`, `battery_notes_explicit`, `recorder_exact`, `statistics_inferred` and `automatic_unconfirmed`. A recharge is a charge cycle, never an assumed replacement.
 
-Estimator features are internal: current cycle age, previous cycle durations, robust short/medium/long drain rates, drain acceleration, sample count/quality, estimated remaining range and confidence. Historical cycles from the same physical device are strongest; same-model local cohort may be a secondary prior. Capacity tables are optional contextual data, not the primary lifetime predictor.
+Estimator features are internal: current cycle age, previous cycle durations, robust median pairwise decline rate, drain acceleration, sample count/quality, estimated remaining range and confidence. An ETA is withheld until at least four good observations span seven days, unless the same physical device has completed replacement cycles for a deliberately low-confidence historical estimate. Historical cycles from the same physical device are strongest; same-model local cohort may be a secondary prior. Capacity tables are optional contextual data, not the primary lifetime predictor. These initial gates are implementation defaults and remain tunable after real-world evaluation.
 
 ## Availability profile and incident
 

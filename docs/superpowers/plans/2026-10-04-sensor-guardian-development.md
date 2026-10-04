@@ -112,12 +112,12 @@
 
 **Interfaces:** pure functions normalize readings, detect replacement candidates, maintain a cycle and return estimate `{remaining_days_range, replacement_window, confidence, reason_codes}`; they do not create HA entities or notifications.
 
-- [ ] Define bounds/quality flags for invalid %, voltage and timestamps; cover percentage jitter and stale reports.
-- [ ] Record only meaningful changes/checkpoints and flag low-battery, significant voltage changes and confirmed replacement.
-- [ ] Distinguish disposable replacement from rechargeable charge; require confirmation for uncertain automatic replacement candidates.
-- [ ] Implement robust trend estimation plus per-device cycle-history comparison; expose no exact ETA below the documented sample-quality gate.
-- [ ] Detect abnormal drain against the device's own prior cycles and mark weak/coarse sensor reports as low quality.
-- [ ] Test flat, noisy, steep-drop, sparse, reset-after-replacement and charging traces; run battery tests and commit.
+- [x] Define bounds/quality flags for invalid %, voltage and timestamps; cover percentage jitter and stale reports.
+- [x] Record only meaningful changes/checkpoints and flag low-battery, significant voltage changes and confirmed replacement.
+- [x] Distinguish disposable replacement from rechargeable charge; require confirmation for uncertain automatic replacement candidates.
+- [x] Implement robust trend estimation plus per-device cycle-history comparison; expose no ETA below the documented sample-quality gate.
+- [x] Detect abnormal drain against the device's own prior cycles and mark weak/coarse sensor reports as low quality.
+- [x] Test flat, noisy, steep-drop, sparse, reset-after-replacement and charging traces; run battery tests and commit.
 
 ## Task 5: Generic availability and reporting-pattern learner
 
