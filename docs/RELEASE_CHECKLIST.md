@@ -4,7 +4,7 @@ This checklist is a gate for a future tagged release. The current development br
 
 ## Repository and packaging
 
-- [ ] Select and publish the repository's source-code license. `THIRD_PARTY_DATA.md` covers the separate Battery Notes catalogue notice only.
+- [x] Publish the repository's MIT source-code license. `THIRD_PARTY_DATA.md` separately covers the Battery Notes catalogue notice.
 - [ ] Confirm `hacs.json`, the integration manifest, translations, and packaged `www/panel.js` in a clean HACS custom-repository install.
 - [ ] Install and update through HACS on a disposable Home Assistant Core instance; confirm the panel JS resource and admin-only panel load without external network access.
 - [ ] Validate config flow, first startup, unload/reload, restart, data migration, export and restore on the declared minimum Core and the current target Core.
