@@ -28,6 +28,8 @@ The integration is intended to help answer:
 - [Home Assistant interface](docs/HOME_ASSISTANT.md) — entities, events, actions and notifications
 - [Panel design](docs/FRONTEND.md) — tabs and workflows
 - [Development stages](docs/ROADMAP.md) — phased implementation plan
+- [Detailed development plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) — task-by-task acceptance checks and GitHub issue map
+- [Progress log](docs/PROGRESS.md) — completed work and verification reports
 - [Open questions](docs/OPEN_QUESTIONS.md) — decisions still to make
 - [Third-party data and attribution](THIRD_PARTY_DATA.md) — Battery Notes snapshot requirements
 
