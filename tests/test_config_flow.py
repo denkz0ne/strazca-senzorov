@@ -58,6 +58,8 @@ async def test_empty_entry_sets_up_and_unloads_without_entities(hass):
     await hass.async_block_till_done()
     assert er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id) == []
     assert hass.bus.async_listeners().get(EVENT_STATE_REPORTED, 0) == 0
+    assert hass.services.has_service(DOMAIN, "mark_battery_replaced")
+    assert hass.services.has_service(DOMAIN, "confirm_incident_cause")
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED

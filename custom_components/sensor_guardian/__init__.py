@@ -20,7 +20,10 @@ def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
-    """Set up the integration from YAML (not supported)."""
+    """Register integration actions independently of config entry lifecycle."""
+    from .services import async_register_services
+
+    async_register_services(hass)
     return True
 
 
@@ -37,9 +40,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
     from .battery.collector import async_subscribe_battery
     from .runtime import async_process_devices
-    from .services import async_register_services
-
-    async_register_services(hass)
 
     def schedule_save() -> None:
         previous_cancel = runtime.get("cancel_flush")
@@ -143,9 +143,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry, ["binary_sensor", "sensor"]
     ):
         return False
-    from .services import async_unregister_services
-
-    async_unregister_services(hass)
     hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     if not hass.data.get(DOMAIN):
         hass.data.pop(DOMAIN, None)

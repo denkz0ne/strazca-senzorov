@@ -61,8 +61,12 @@ async def test_minimal_entities_link_to_source_device_and_unload(hass, hass_stor
     assert battery_events[0]["battery_level"] == 10
 
     assert await hass.config_entries.async_unload(entry.entry_id)
-    assert not hass.services.has_service("sensor_guardian", "mark_battery_replaced")
-    assert er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id) == []
+    assert hass.services.has_service("sensor_guardian", "mark_battery_replaced")
+    entries_after_unload = er.async_entries_for_config_entry(
+        er.async_get(hass), entry.entry_id
+    )
+    assert len(entries_after_unload) == 3
+    assert all(hass.states.get(item.entity_id) is None for item in entries_after_unload)
 
 
 async def test_problem_status_and_incident_event_transition_are_deduplicated(
