@@ -74,6 +74,14 @@ async def test_malformed_payload_is_preserved_without_overwrite(hass):
         ),
     )
     original_bytes = await _read_bytes(hass, storage.path)
+    print(
+        "STORAGE_DIAGNOSTIC",
+        storage.path,
+        storage.key,
+        storage.key in storage._manager._invalidated,
+        storage._manager._files,
+    )
+    print("STORAGE_BYTES", original_bytes)
 
     with pytest.raises(StorageDataError):
         await storage.async_load()
@@ -96,6 +104,12 @@ async def test_minor_migration_is_idempotent_and_persisted(hass):
                 "data": old_data,
             }
         ),
+    )
+    print(
+        "MIGRATION_DIAGNOSTIC",
+        storage.path,
+        storage.key in storage._manager._invalidated,
+        storage._manager._files,
     )
 
     loaded = await storage.async_load()

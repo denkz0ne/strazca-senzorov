@@ -17,4 +17,4 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements_test.txt
       - run: ruff check .
-      - run: pytest -q
+      - run: pytest -s -q
