@@ -149,3 +149,10 @@ This log records completed work and verification for the staged development plan
 - Other log messages are separate from Strážca: duplicate `utility_meter`/`frontend` YAML keys; an invalid archived package slug; translation placeholder failure in SmartThinQ; several network service timeouts; Watchman stale references; and normal custom-integration warnings. These were not changed.
 - The hotfixes were merged to `main` in PR #15 (merge commit `5415d9e`). Main CI run `37237538284` passed Ruff, JavaScript/JSON checks, all 76 tests and HACS validation. The follow-up docs update records the merged state and owner update procedure.
 - Live behavior remains unverified until the owner updates HA, checks its fresh log, and exercises migration/restore/restart and the real browser/viewport. Issue #10 remains open for those owner-run checks. No tag or release was created.
+
+## 2026-10-05 — post-update HAOS log verification
+
+- Reviewed `home-assistant_2026-10-04T22-00-19.929Z.log` (local log window 2026-10-04 23:57 through 2026-10-05 00:00; Home Assistant Core 2026.9.4). The log reaches setup of both `sensor_guardian.binary_sensor` and `sensor_guardian.sensor`.
+- The previous Strážca faults are absent from this log: no blocking `battery_models.json` read, non-thread-safe `async_create_task`, or unawaited Strážca coroutine was reported. This is positive startup evidence after the update, not proof of migration/restore correctness or long-term runtime behavior.
+- Unrelated configuration/integration errors remain, including duplicate `utility_meter`/`frontend` YAML keys, an invalid archived package slug, SmartThinQ translation placeholders, and an invalid legacy `notify.file` platform. REST/WLED/ESPHome and GeekMagic connection timeouts plus Watchman stale references also appear; none are attributed to Strážca.
+- The user-provided post-update log was reviewed without making changes to HAOS. Issue #10 remains open for migration preview/apply/restore verification and live panel/browser review.
