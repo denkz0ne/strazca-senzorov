@@ -1,6 +1,6 @@
 # Používateľský návod
 
-Tento návod opisuje aktuálnu vývojovú verziu Strážcu senzorov. Projekt zatiaľ nemá stabilné vydanie; názvy a umiestnenie položiek sa môžu medzi verziami meniť. Ak sa správanie v tvojej HA inštalácii líši od návodu, rozhodujúce je správanie konkrétnej verzie a treba ho nahlásiť podľa [podpory a riešenia problémov](#riešenie-problémov).
+Tento návod opisuje aktuálnu verziu z predvolenej vetvy `main`. Projekt zatiaľ nemá stabilné vydanie; názvy a umiestnenie položiek sa môžu medzi verziami meniť. Ak sa správanie v tvojej HA inštalácii líši od návodu, rozhodujúce je správanie konkrétnej verzie a treba ho nahlásiť podľa [podpory a riešenia problémov](#riešenie-problémov).
 
 Navigácia sekcií a vyhľadávanie zostávajú počas rolovania dostupné. Na úzkom displeji možno taby posúvať vodorovne a zoznamy tabuliek majú vlastný posun.
 
@@ -64,7 +64,13 @@ Strážca vysiela udalosti `sensor_guardian_incident`, `sensor_guardian_recovere
 
 ## Záloha, aktualizácia a návrat
 
-Pred aktualizáciou HA vytvor zálohu HA vrátane konfigurácie a úložiska. Pri aktualizácii vlastnej integrácie zachovaj celý adresár `custom_components/sensor_guardian`; po výmene súborov reštartuj Home Assistant a skontroluj logy. Neukladaj používateľské dáta ručne do súborov integrácie. Persistované dáta spravuje Strážca cez HA Store.
+Pred aktualizáciou vytvor úplnú zálohu HA vrátane konfigurácie a úložiska. Pre túto inštaláciu sleduj v HACS vlastné repository `denkz0ne/strazca-senzorov` na predvolenej vetve `main`: v HACS otvor integráciu Strážca senzorov a zvoľ **Update**, keď je dostupný. HACS bez GitHub release/tagu sleduje obsah predvolenej vetvy; stabilné vydanie zatiaľ neexistuje. Po dokončení sťahovania reštartuj Home Assistant a obnov stránku prehliadača naplno.
+
+Po reštarte skontroluj **Nastavenia → Systém → Logy**. Pri tejto oprave nesmie Strážca hlásiť blokujúce synchronné čítanie `battery_models.json`, chybu bezpečnosti vlákien pri `async_create_task` ani „coroutine was never awaited“. Úspešný štart over aj otvorením panelu a obnovením zoznamu zariadení. Ak HACS aktualizáciu neponúka, skontroluj, že repository je pridané ako vlastné HACS repository a sleduje `main`; neinštaluj náhodný ZIP ani inú vetvu.
+
+Battery Notes zatiaľ ponechaj nainštalované. Odstráň ho až po náhľade, zálohe, aplikovaní a kontrole importu vrátane reštartu Strážcu.
+
+Neukladaj používateľské dáta ručne do súborov integrácie. Persistované dáta spravuje Strážca cez HA Store.
 
 Ak aktualizácia zlyhá, najprv zachovaj HA zálohu a logy. Vráť predchádzajúcu verziu integrácie z tej istej dôveryhodnej vetvy/commitu a reštartuj. Nevymazávaj `.storage` ani záznamy integrácie ako prvý krok.
 

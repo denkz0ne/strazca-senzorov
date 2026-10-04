@@ -1,6 +1,6 @@
 # Strážca senzorov
 
-**Strážca senzorov** is a Home Assistant custom integration for monitoring device availability, battery condition and likely outage causes. Its primary record is the HA device; battery management is one capability of that device, not the whole product. The current integration and panel are implemented on the development branch, but the project has no stable tagged release and live behavior still needs release validation.
+**Strážca senzorov** is a Home Assistant custom integration for monitoring device availability, battery condition and likely outage causes. Its primary record is the HA device; battery management is one capability of that device, not the whole product. The current implementation is merged into `main` and can be tracked through HACS as a custom repository. It has no stable tagged release, and live behavior still needs owner-run validation.
 
 The integration is intended to help answer:
 
@@ -49,9 +49,9 @@ Compatibility target: the connected instance reports Home Assistant Core `2026.9
 
 ## Current behavior and status
 
-Development is underway in stages tracked by [GitHub milestone MVP Development](https://github.com/denkz0ne/strazca-senzorov/milestone/1). See the [detailed plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress report](docs/PROGRESS.md). The development branch is not a tagged release, and live HA/HACS installation still needs release validation. Some thresholds and design questions remain proposals.
+Implementation stages are tracked by [GitHub milestone MVP Development](https://github.com/denkz0ne/strazca-senzorov/milestone/1). See the [detailed plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress report](docs/PROGRESS.md). The changes described here are merged into `main`, but there is no stable tagged release. The repository owner still needs to update the live HA installation and confirm runtime behavior. Some thresholds and design questions remain proposals.
 
-There is no published release yet. For development, copy `custom_components/sensor_guardian` into Home Assistant's `custom_components` directory and restart Home Assistant. On first open, use **Devices** to review candidates in the compact table and explicitly track selected devices; discovery alone never starts tracking. The panel uses HA friendly names and areas, shows `ZB###`/`ZBT###` only when present in the name, and keeps navigation/search available while scrolling. New discovery candidates update one native Home Assistant notification with the pending count. Clean HACS install/update and live panel checks remain release gates. Do not remove Battery Notes until its import has been previewed, backed up, applied and verified in Strážca.
+There is no published release yet. For the current HACS custom-repository installation, use HACS to update `denkz0ne/strazca-senzorov` from its default `main` branch, then fully restart Home Assistant and refresh the browser. The log-driven fixes in this update move bundled catalogue reads off the event loop and make scheduled callbacks thread-safe. Review the fresh log before relying on automated diagnosis. On first open, use **Zariadenia** to review candidates in the compact table and explicitly track selected devices; discovery alone never starts tracking. New candidates update one native Home Assistant notification with the pending count. HA does not expose a supported numeric badge for an individual custom panel. Do not remove Battery Notes until its import has been previewed, backed up, applied and verified in Strážca.
 
 ## Principles
 
@@ -64,7 +64,7 @@ There is no published release yet. For development, copy `custom_components/sens
 
 # Development status
 
-The MVP implementation is under active development on the development branch. It targets Home Assistant Core 2026.9+, uses one global config entry and has no runtime Battery Notes dependency. It is not a tagged or deployment-verified release.
+The MVP implementation is merged into `main`. It targets Home Assistant Core 2026.9+, uses one global config entry and has no runtime Battery Notes dependency. It is not a tagged release, and live deployment checks are still pending.
 
 ## Local development
 

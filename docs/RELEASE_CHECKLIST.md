@@ -1,6 +1,6 @@
 # First release checklist
 
-This checklist is a gate for a future tagged release. The current development branch is not a supported release.
+This checklist is a gate for a future tagged release. The current `main` branch can be tracked by HACS as a custom repository for owner testing, but it is not a supported stable release and live checks remain outstanding.
 
 ## Repository and packaging
 
