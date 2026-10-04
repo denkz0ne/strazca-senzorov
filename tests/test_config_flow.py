@@ -45,7 +45,7 @@ async def test_user_flow_aborts_if_an_entry_already_exists(hass):
     )
 
     assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
+    assert result["reason"] == "single_instance_allowed"
     assert len(hass.config_entries.async_entries(DOMAIN)) == 1
 
 
@@ -56,7 +56,7 @@ async def test_empty_entry_sets_up_and_unloads_without_entities(hass):
 
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    assert er.async_get(hass).async_entries_for_config_entry(entry.entry_id) == []
+    assert er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id) == []
     assert hass.bus.async_listeners().get(EVENT_STATE_REPORTED, 0) == 0
 
     assert await hass.config_entries.async_unload(entry.entry_id)
