@@ -1,6 +1,11 @@
 from types import SimpleNamespace
 
-from custom_components.sensor_guardian.discovery import rank_device_entities
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.sensor_guardian.discovery import (
+    display_identifier,
+    rank_device_entities,
+)
 
 
 def entity(
@@ -51,3 +56,51 @@ def test_battery_only_candidate_and_manual_dismissal_data_shape():
     assert candidate is not None
     assert candidate.suggested_mode == "battery_only"
     assert candidate.confidence == "medium"
+
+
+def test_friendly_identifier_is_name_only_and_accepts_zb_and_zbt_patterns():
+    assert display_identifier("zbt05-kupelna") == "ZBT05"
+    assert display_identifier("zbt-5 teplomer") == "ZBT05"
+    assert display_identifier("ZB123 entry") == "ZB123"
+    assert display_identifier("registry-5a4d") == ""
+    assert display_identifier("device ZB1234") == ""
+
+
+async def test_discovery_uses_friendly_registry_metadata_and_hides_resolved_devices(
+    hass,
+):
+    from homeassistant.helpers import area_registry
+    from homeassistant.helpers import device_registry as dr
+    from homeassistant.helpers import entity_registry as er
+
+    from custom_components.sensor_guardian.discovery import async_discover_devices
+
+    source_entry = MockConfigEntry(domain="zha", data={})
+    source_entry.add_to_hass(hass)
+    area = area_registry.async_get(hass).async_create("Kúpeľňa")
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=source_entry.entry_id,
+        identifiers={("zha", "zbt05")},
+        name="zbt05-kupelna",
+        manufacturer="Example",
+        model="Thermometer",
+        area_id=area.id,
+    )
+    entity_row = er.async_get(hass).async_get_or_create(
+        "sensor",
+        "zha",
+        "battery",
+        config_entry=source_entry,
+        device_id=device.id,
+        original_name="Battery",
+        unit_of_measurement="%",
+    )
+    hass.states.async_set(entity_row.entity_id, "80", {"unit_of_measurement": "%"})
+
+    candidates = await async_discover_devices(hass)
+    candidate = next(item for item in candidates if item["device_id"] == device.id)
+    assert candidate["name"] == "zbt05-kupelna"
+    assert candidate["identifier"] == "ZBT05"
+    assert candidate["area_name"] == "Kúpeľňa"
+    assert candidate["source_integration"] == "zha"
+    assert await async_discover_devices(hass, tracked_device_ids={device.id}) == []

@@ -10,27 +10,27 @@ The side panel is for detailed management and diagnosis; automations use the sma
 4. **Incidents** — grouped and individual incident timeline, current/previous cause, confidence/evidence, acknowledgement, confirmation/correction and recovery.
 5. **Settings** — notification policy, startup grace, stale/offline thresholds, sampling, model catalogue management, import status, provider support and diagnostics.
 
-The implemented panel has these five tabs. The detail drawer, household battery stock, advanced filters and some diagnostic affordances above remain design goals unless visible in the current implementation. Panel remains useful with generic provider data and must label unsupported diagnostics clearly.
+The implemented panel has these five tabs. Battery assignments and tracked battery devices use compact tables; discovery candidates use a selectable, filterable table. Unsupported registry or sensor data stays blank/unknown rather than inferred. Panel remains useful with generic provider data and labels unsupported diagnostics clearly.
 
 ## Observed current limitations
 
-- The **Devices** discovery tab can show internal HA registry IDs as card titles when a readable name is absent from the current API record. Device/entity context should be made more legible before stable release; see [open questions](OPEN_QUESTIONS.md).
+- The **Devices** discovery tab uses the HA device name, area, and source integration when available. Its pending notice uses the native Home Assistant notification badge (one persistent summary); custom panels have no supported per-panel sidebar counter.
 - Overview and Incidents are empty until the user explicitly tracks candidates and incidents occur; discovery by itself does not create tracked records.
 - The visible panel is a first usable management surface, not the final detailed analytics dashboard. Do not document planned controls as shipped until they appear in code and pass UI review.
 
-## Requested compact lists (not implemented yet)
+## Compact lists and discovery
 
-These requests are tracked for later UI work: [#11 — battery table](https://github.com/denkz0ne/strazca-senzorov/issues/11), [#12 — device identity and diagnostics table](https://github.com/denkz0ne/strazca-senzorov/issues/12), and [#13 — new-device discovery notification and pending queue](https://github.com/denkz0ne/strazca-senzorov/issues/13).
+Issues [#11](https://github.com/denkz0ne/strazca-senzorov/issues/11) to [#13](https://github.com/denkz0ne/strazca-senzorov/issues/13) define the compact batteries/devices tables and discovery queue.
 
-The section tabs and search row should remain sticky while long panel lists scroll, without hiding headings or keyboard focus. This is tracked in [#14](https://github.com/denkz0ne/strazca-senzorov/issues/14) and is not implemented yet.
+The section navigation and search row are sticky during panel scrolling; tables have their own horizontal scrolling area and sticky column headers. Tab buttons remain horizontally scrollable on narrow screens.
 
-The **Batteries** table should use one compact row per tracked battery device and show readable device name, the optional `ZB###`/`ZBT###` identifier parsed from the device name, battery type/quantity, current level, last replacement, concise attention state and remaining-life estimate only when supported by enough history. If the name has no recognized identifier, leave that cell blank; do not derive it from the HA registry ID. For example, `zbt05-kupelna` can display `ZBT05`. Sort/search should cover useful columns; detailed cycles and evidence should stay in a secondary detail view.
+The **Batteries** table uses one compact row per tracked battery device and shows readable device name, the optional `ZB###`/`ZBT###` identifier parsed from the name, battery type/quantity, current level, last replacement, concise attention state and remaining-life estimate only when supported by enough history. An unrecognized identifier stays blank. `zbt05-kupelna` displays `ZBT05`. Search and sort cover useful fields; assignment controls are in row details.
 
-The **Devices** list should identify entries from the HA display name and assigned area, plus a `ZB###` or `ZBT###` identifier only when it is present in the name. Missing identifiers remain blank. Show the source HA integration separately from power type/transport. Include available battery, voltage/low flag, battery type/count, replacement, estimate, signal/LQI/RSSI, last-report, tracking mode and availability/cause information. Use compact rows with expandable details for less common fields. Add checkboxes for bulk tracking with explicit confirmation and filters by integration, power source, area and tracking/availability. Do not show an opaque registry hash as the primary label, invent missing values, or enable disabled signal entities automatically.
+The **Devices** list uses the HA display name and assigned area, plus a `ZB###` or `ZBT###` identifier only when present in the name. It shows original integration separately from power/transport, source battery values and reasons, and a prefilled battery model when an exact manufacturer/model match exists. Rows have individual tracking/power choices and checkboxes for confirmed bulk tracking. Filters cover integration, observed battery data, area and native availability. Missing values remain blank/unknown; disabled signal entities are never enabled automatically.
 
-The **Overview** list should also show the original HA integration for every tracked device, not only the Strážca health state. This is part of issue [#12](https://github.com/denkz0ne/strazca-senzorov/issues/12) and is not yet implemented in the current overview serializer.
+The **Overview** table shows the original HA integration and area for every tracked device, with battery and incident evidence in each row's expandable details.
 
-Discovery should persist a deduplicated pending queue, update a sidebar count when new HA devices are found, and remove tracked/ignored entries from that queue and the candidate list. Detection and resolution state must survive restart. A device is never tracked without the user's explicit choice.
+Discovery derives its pending queue from the persistent HA device/entity registries and stored ignored IDs, so restart/reload does not duplicate candidates. A single actionable persistent notification updates on registry create/update/remove events and shows the exact number of candidates. Home Assistant's supported custom-panel API exposes no per-panel numeric sidebar badge; its native Notifications item shows one badge for this summary notification. The Devices tab also includes its current pending count. A device is never tracked without the user's explicit choice. Re-pairing with a new registry ID is treated as a new candidate; ignored IDs do not suppress a distinct new registry identity.
 
 ## MVP packaging and API
 

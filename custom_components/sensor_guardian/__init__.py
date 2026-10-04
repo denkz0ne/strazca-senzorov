@@ -21,12 +21,14 @@ def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Register integration actions independently of config entry lifecycle."""
+    from .discovery_notifier import async_register_discovery_listeners
     from .panel import async_register_panel
     from .services import async_register_services
     from .websocket_api import async_register_commands
 
     async_register_services(hass)
     async_register_commands(hass)
+    async_register_discovery_listeners(hass)
     await async_register_panel(hass)
     return True
 
@@ -158,6 +160,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry, ["binary_sensor", "sensor"]
     )
     await async_process_devices(hass, runtime)
+    from .discovery_notifier import async_refresh_discovery_notice
+
+    await async_refresh_discovery_notice(hass)
     return True
 
 

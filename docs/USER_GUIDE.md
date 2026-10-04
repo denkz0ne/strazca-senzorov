@@ -2,31 +2,33 @@
 
 Tento návod opisuje aktuálnu vývojovú verziu Strážcu senzorov. Projekt zatiaľ nemá stabilné vydanie; názvy a umiestnenie položiek sa môžu medzi verziami meniť. Ak sa správanie v tvojej HA inštalácii líši od návodu, rozhodujúce je správanie konkrétnej verzie a treba ho nahlásiť podľa [podpory a riešenia problémov](#riešenie-problémov).
 
+Navigácia sekcií a vyhľadávanie zostávajú počas rolovania dostupné. Na úzkom displeji možno taby posúvať vodorovne a zoznamy tabuliek majú vlastný posun.
+
 ## Čo sa zobrazí po prvom spustení
 
 Panel sa dá používať bez konfigurácie integrácie. Karta **Zariadenia** vyhľadá kandidátov z HA registrov a zobrazí ich návrh sledovania. Samotné objavenie zariadenia ho ešte nezačne sledovať.
 
 - **Prehľad** zostane prázdny, kým aspoň jedno zariadenie nezačneš sledovať.
-- **Zariadenia** obsahujú objavené kandidáty. Skontroluj režim a typ napájania, potom vyber **Sledovať** alebo **Ignorovať**.
-- **Batérie** zobrazujú katalóg a údaje o sledovaných batériových zariadeniach. Modelový predvolený typ batérie je len návrh; uprav ho podľa skutočne vloženej batérie.
+- **Zariadenia** obsahujú čakajúcich kandidátov v tabuľke s názvom, `ZB`/`ZBT` označením z mena, oblasťou a pôvodnou HA integráciou. Možno filtrovať a vybrať riadky; **Sledovať vybrané** najprv zobrazí potvrdenie počtu. V rozbaľovacích dôkazoch uvidíš dostupné zdrojové hodnoty. Vypnuté signálové entity sú iba odporúčané a Strážca ich sám nezapne.
+- **Batérie** zobrazujú sledované batériové zariadenia v kompaktnej tabuľke: úroveň, typ a počet batérií, poslednú výmenu, stav a odhad len vtedy, keď história stačí. Priradenie sa upravuje v detaile riadka. Modelový predvolený typ batérie je len návrh; uprav ho podľa skutočne vloženej batérie.
 - **Incidenty** sa naplnia až po spracovaní problému u sledovaného zariadenia.
 - **Nastavenia** obsahujú momentálne podporované prahy a stav importu.
 
-Panel môže v tejto verzii ukazovať interné ID zariadenia namiesto jeho mena. Pred výberom preto porovnaj navrhnuté entity a ich názvy. Toto je známe obmedzenie úvodného discovery UI.
+Keď HA podporuje názov zariadenia, Strážca používa tento názov; interné registry ID zostáva len technickým identifikátorom. Oblasť sa zobrazí, ak ju zariadeniu priradíš v HA. Ak názov obsahuje `ZB###` alebo `ZBT###`, panel ho ukáže osobitne; inak nechá bunku prázdnu.
 
-Kompaktné tabuľkové zoznamy, hromadný výber a filtre, zobrazenie pôvodnej HA integrácie v Prehľade, upozornenie na nové kandidáty a ukotvenú navigáciu pri scrollovaní riešia budúce požiadavky [#11](https://github.com/denkz0ne/strazca-senzorov/issues/11), [#12](https://github.com/denkz0ne/strazca-senzorov/issues/12), [#13](https://github.com/denkz0ne/strazca-senzorov/issues/13) a [#14](https://github.com/denkz0ne/strazca-senzorov/issues/14); zatiaľ ich panel nemusí zobrazovať.
+Pri novom vhodnom zariadení sa obnoví jedno natívne upozornenie HA s počtom čakajúcich kandidátov; odznak sa zobrazuje pri Upozorneniach. HA neposkytuje podporovaný číselný odznak pri konkrétnom vlastnom paneli. Sledované a ignorované zariadenia sa z kandidátov skryjú. Navigácia a vyhľadávanie ostávajú počas rolovania dostupné.
 
 ## Začni s jedným zariadením
 
-1. Otvor **Zariadenia** a vyhľadaj kandidáta podľa názvu alebo entity.
+1. Otvor **Zariadenia** alebo natívne upozornenie a vyhľadaj kandidáta podľa názvu, oblasti či integrácie.
 2. Skontroluj dostupné dôkazy: batériová úroveň, `battery low`, napätie, dostupnosť alebo signál. Vypnuté signálové entity sú iba odporúčané; Strážca ich sám nezapne.
 3. Vyber režim:
    - **Batéria aj dostupnosť** pre batériové zariadenie, ktoré chceš monitorovať oboma spôsobmi.
    - **Iba batéria** ak ťa zaujíma batéria a zariadenie nemá spoľahlivý pravidelný report.
    - **Iba dostupnosť** pre sieťovo napájané zariadenie alebo zariadenie bez batériových údajov.
 4. Vyber typ napájania. Pri batériovom režime skontroluj alebo nastav typ a počet batérií v karte **Batérie**.
-5. Stlač **Sledovať**. Zariadenie sa objaví v **Prehľade**; pri problémoch sa môže vytvoriť incident.
-6. Nevyberaj hromadne všetkých kandidátov naraz. Najprv over niekoľko reprezentatívnych zariadení a správnosť zdrojových entít.
+5. Pri jednom zariadení ho označ checkboxom a stlač **Sledovať vybrané**. Potvrď počet. Zariadenie sa objaví v **Prehľade**; pri problémoch sa môže vytvoriť incident.
+6. Hromadný výber sa vykonáva len nad kandidátmi, ktoré sú momentálne načítané; najprv over niekoľko reprezentatívnych zariadení a správnosť zdrojových entít.
 
 **Ignorovať** skryje kandidáta z aktuálnych odporúčaní. Nie je to vypnutie zdrojových HA entít.
 

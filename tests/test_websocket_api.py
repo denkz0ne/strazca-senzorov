@@ -55,6 +55,36 @@ def test_pagination_and_search_are_bounded():
         get_section_page(data, "devices", offset=0, limit=101)
 
 
+def test_discovery_filter_choices_cover_records_beyond_current_page():
+    page = get_section_page(
+        {
+            "discovery": [
+                {
+                    "device_id": "d1",
+                    "source_integration": "zha",
+                    "area_name": "Kitchen",
+                    "availability_state": "on",
+                },
+                {
+                    "device_id": "d2",
+                    "source_integration": "esphome",
+                    "area_name": "Garden",
+                    "availability_state": "unavailable",
+                },
+            ]
+        },
+        "discovery",
+        limit=1,
+    )
+
+    assert [item["device_id"] for item in page["items"]] == ["d1"]
+    assert page["filters"] == {
+        "integrations": ["esphome", "zha"],
+        "areas": ["Garden", "Kitchen"],
+        "availability": ["on", "unavailable"],
+    }
+
+
 def test_battery_page_keeps_cycles_separate_from_model_catalogue():
     page = get_section_page(
         {
@@ -67,6 +97,41 @@ def test_battery_page_keeps_cycles_separate_from_model_catalogue():
     )
     assert page["items"][0]["model_id"] == "m1"
     assert page["related"]["cycle_count"] == 1
+
+
+def test_battery_page_includes_current_level_and_name_identifier_without_inventing_it():
+    page = get_section_page(
+        {
+            "devices": [
+                {
+                    "device_id": "opaque1",
+                    "name": "zbt05-kupelna",
+                    "tracking_mode": "battery_only",
+                    "battery_type": "CR2450",
+                    "battery_quantity": 1,
+                    "battery_estimate": {},
+                    "last_replaced_at": "2026-09-01",
+                    "battery_level": 72,
+                },
+                {
+                    "device_id": "opaque2",
+                    "name": "Hall sensor",
+                    "tracking_mode": "battery_only",
+                    "battery_type": "CR2032",
+                    "battery_quantity": 2,
+                },
+            ],
+            "models": [],
+            "samples": [],
+            "cycles": [],
+        },
+        "batteries",
+    )
+    rows = page["related"]["tracked_devices"]
+    assert rows[0]["identifier"] == "ZBT05"
+    assert rows[0]["battery_level"] == 72
+    assert rows[1]["identifier"] == ""
+    assert rows[1].get("battery_level") is None
 
 
 def test_settings_page_does_not_return_internal_runtime_data():

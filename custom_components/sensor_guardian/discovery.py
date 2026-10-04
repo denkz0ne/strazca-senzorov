@@ -2,12 +2,22 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 from types import SimpleNamespace
 from typing import Any
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry, entity_registry
+
+
+def display_identifier(name: str | None) -> str:
+    """Extract ZB/ZBT label from a friendly name; never use registry IDs."""
+    match = re.search(r"(?<![A-Za-z0-9])ZBT?[- ]?(\d{1,3})(?!\d)", name or "", re.I)
+    if not match:
+        return ""
+    prefix = "ZBT" if match.group(0).strip().upper().startswith("ZBT") else "ZB"
+    return f"{prefix}{int(match.group(1)):02d}"
 
 
 @dataclass(frozen=True)
@@ -146,11 +156,71 @@ async def async_discover_devices(
                 )
             )
     result: list[dict[str, Any]] = []
+    areas = getattr(hass, "data", {}).get("area_registry")
+    if areas is None:
+        try:
+            from homeassistant.helpers import area_registry
+
+            areas = area_registry.async_get(hass)
+        except ImportError, AttributeError:
+            areas = None
     for device in devices.devices:
         if device.id in tracked or device.id in dismissed:
             continue
         matching = by_device.get(device.id, [])
         candidate = rank_device_entities(device.id, matching)
         if candidate is not None:
-            result.append(candidate.as_dict())
+            row = candidate.as_dict()
+            source_row = next(
+                (
+                    entity
+                    for entity in entities.entities.values()
+                    if entity.device_id == device.id and not entity.disabled_by
+                ),
+                None,
+            )
+            config_entry_id = source_row.config_entry_id if source_row else None
+            config_entry = (
+                hass.config_entries.async_get_entry(config_entry_id)
+                if config_entry_id
+                else None
+            )
+            area = (
+                areas.async_get_area(device.area_id)
+                if areas and device.area_id
+                else None
+            )
+            name = (
+                device.name_by_user
+                or device.name
+                or (source_row.name or source_row.original_name if source_row else "")
+            )
+            row.update(
+                {
+                    "name": name or "Neznámy názov",
+                    "identifier": display_identifier(name),
+                    "manufacturer": device.manufacturer,
+                    "model": device.model,
+                    "area_id": device.area_id,
+                    "area_name": area.name if area else None,
+                    "source_integration": (
+                        config_entry.domain
+                        if config_entry
+                        else (source_row.platform if source_row else "unknown")
+                    ),
+                    "power_type": "unknown",
+                    "has_battery_data": any(
+                        row["entity_refs"].get(key)
+                        for key in ("battery_level", "battery_low", "voltage")
+                    ),
+                }
+            )
+            availability_id = row["entity_refs"].get("native_availability")
+            availability_state = (
+                hass.states.get(availability_id) if availability_id else None
+            )
+            row["availability_state"] = (
+                availability_state.state if availability_state else "unknown"
+            )
+            result.append(row)
     return result

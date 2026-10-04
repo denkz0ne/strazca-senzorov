@@ -130,3 +130,14 @@ This log records completed work and verification for the staged development plan
 - Recorded the new-device sidebar badge, persistent pending discovery queue and automatic hiding of tracked/ignored devices in [issue #13](https://github.com/denkz0ne/strazca-senzorov/issues/13). No implementation was made.
 - Recorded sticky section navigation and search while scrolling, including responsive and keyboard-accessibility checks, in [issue #14](https://github.com/denkz0ne/strazca-senzorov/issues/14). No implementation was made.
 - No changes were made to Home Assistant. Documentation consistency, links, formatting and CI are pending this documentation commit.
+
+## 2026-10-04 — Open UI issues #11–#14 implementation
+
+- #11: Replaced per-device battery cards with a compact table, name-only ZB/ZBT identifier, live/latest sampled level, type/count, last replacement, attention/estimate, search/sort, narrow-screen scrolling and row-level assignment details.
+- #12: Added HA display name/area/source integration metadata, separate integration and power/transport, compact Overview rows with expandable battery/incident evidence, selectable/filterable discovery rows and confirmed bulk tracking. Candidate rows show exact model matches and selected live readings; disabled signal recommendations remain off.
+- #13: Added registry create/update/remove listeners and one idempotently updated native persistent-notification summary with exact pending count. Pending candidates derive from durable HA registries; tracked/ignored IDs are excluded and resolution uses existing storage. The supported HA custom-panel API has no numeric badge for an individual panel, so the notification badge is on HA's Notifications item and the Devices tab shows its candidate count. A new registry identity after re-pairing is treated as a new device.
+- #14: Made the navigation/search row sticky, tab strip horizontally scrollable and data tables independently scrollable with sticky headers.
+- Updated `FRONTEND.md`, `USER_GUIDE.md`, `OPEN_QUESTIONS.md`, `ROADMAP.md`, README and changelog. The user-owned HA instance was not modified.
+- Local checks: Ruff, Node syntax, manifest JSON and `git diff --check` pass; the dependency-free frontend tests pass (2). HA integration tests require Linux because native Windows Home Assistant imports `fcntl`; full CI is pending after pushing the review branch.
+- Discovery filter facets are calculated over the full candidate set, not only the current page; a regression test covers a second-page integration, area and availability value.
+- First-release issue #10 remains open until CI for these commits and owner-controlled HACS install/update, import/restore/restart and real browser/viewport checks are evidenced. No tag or release was created.

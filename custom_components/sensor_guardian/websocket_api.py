@@ -17,6 +17,7 @@ from homeassistant.helpers import device_registry, entity_registry
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
+from .discovery import display_identifier
 from .migration.battery_notes import (
     apply_import_preview,
     async_build_import_preview,
@@ -46,6 +47,14 @@ OVERVIEW_FIELDS = (
     "last_reported_at",
     "battery_attention",
     "active_incident_ids",
+    "source_integration",
+    "area_name",
+    "transport",
+    "battery_type",
+    "battery_quantity",
+    "battery_estimate",
+    "health_reason",
+    "recommended_signal_entities",
 )
 DEVICE_FIELDS = (
     *OVERVIEW_FIELDS,
@@ -66,6 +75,11 @@ DEVICE_FIELDS = (
     "native_availability_state",
     "parent_incident_id",
     "snoozed_until",
+    "area_name",
+    "battery_level",
+    "battery_low",
+    "voltage",
+    "voltage_unit",
 )
 MODEL_FIELDS = (
     "model_id",
@@ -123,6 +137,90 @@ def _matches(record: dict[str, Any], query: str) -> bool:
         if key not in {"entity_refs", "signal", "evidence"}
     )
     return query.casefold() in text.casefold()
+
+
+def _enrich_panel_items(
+    hass: HomeAssistant, data: dict[str, Any], result: dict[str, Any]
+) -> None:
+    """Add friendly registry names and selected live readings to curated rows."""
+    from homeassistant.helpers import area_registry, device_registry
+
+    devices = device_registry.async_get(hass)
+    areas = area_registry.async_get(hass)
+    tracked = {item.get("device_id"): item for item in data.get("devices", [])}
+    for row in result.get("items", []):
+        device_id = row.get("device_id")
+        entry = devices.async_get(device_id) if isinstance(device_id, str) else None
+        area_id = row.get("area_id") or (entry.area_id if entry else None)
+        area = areas.async_get_area(area_id) if area_id else None
+        row["area_name"] = area.name if area else None
+        if entry:
+            row["name"] = (
+                entry.name_by_user or entry.name or row.get("name") or "Neznámy názov"
+            )
+            row["manufacturer"] = row.get("manufacturer") or entry.manufacturer
+            row["model"] = row.get("model") or entry.model
+        row["identifier"] = display_identifier(row.get("name"))
+        source = tracked.get(device_id, {})
+        cycle = next(
+            (
+                item
+                for item in reversed(data.get("cycles", []))
+                if item.get("device_id") == device_id
+            ),
+            None,
+        )
+        row["last_replaced_at"] = cycle.get("started_at") if cycle else None
+        device_samples = [
+            sample
+            for sample in reversed(data.get("samples", []))
+            if sample.get("device_id") == device_id
+        ]
+        for key, output in (
+            ("level_percent", "battery_level"),
+            ("native_low", "battery_low"),
+            ("voltage", "voltage"),
+        ):
+            sample = next(
+                (item for item in device_samples if item.get(key) is not None), None
+            )
+            if output not in row and sample is not None:
+                row[output] = sample[key]
+        refs = source.get("entity_refs", {})
+        if isinstance(refs, dict):
+            for key, output in (
+                ("battery_level", "battery_level"),
+                ("battery_low", "battery_low"),
+                ("voltage", "voltage"),
+            ):
+                entity_id = refs.get(key)
+                state = (
+                    hass.states.get(entity_id) if isinstance(entity_id, str) else None
+                )
+                if state is not None and state.state not in {"unknown", "unavailable"}:
+                    value: Any = state.state
+                    if key == "battery_low":
+                        value = state.state == "on"
+                    elif key in {"battery_level", "voltage"}:
+                        try:
+                            value = float(state.state)
+                        except ValueError:
+                            continue
+                    row[output] = value
+                    if key == "voltage":
+                        row["voltage_unit"] = state.attributes.get(
+                            "unit_of_measurement"
+                        )
+        signal_values = []
+        for signal in source.get("signal", []):
+            entity_id = signal.get("entity_id") if isinstance(signal, dict) else None
+            state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
+            if state is not None and state.state not in {"unknown", "unavailable"}:
+                signal_values.append(
+                    {"kind": signal.get("kind", "signal"), "value": state.state}
+                )
+        if signal_values:
+            row["signal_values"] = signal_values
 
 
 def get_section_page(
@@ -185,6 +283,16 @@ def get_section_page(
         "limit": limit,
         "has_more": offset + len(items) < total,
     }
+    if section == "discovery":
+        result["filters"] = {
+            "integrations": sorted(
+                {str(item.get("source_integration") or "unknown") for item in records}
+            ),
+            "areas": sorted({str(item.get("area_name") or "—") for item in records}),
+            "availability": sorted(
+                {str(item.get("availability_state") or "unknown") for item in records}
+            ),
+        }
     if section == "batteries":
         cycles = data.get("cycles", [])
         tracked_devices = [
@@ -201,12 +309,44 @@ def get_section_page(
                     "battery_estimate",
                     "last_replaced_at",
                     "power_type",
+                    "health_state",
+                    "battery_attention",
+                    "battery_level",
+                    "native_battery_low",
                 ),
             )
             for device in data.get("devices", [])
             if device.get("tracking_mode")
             in {"battery_and_availability", "battery_only"}
         ]
+        for device in tracked_devices:
+            name = str(device.get("name") or "")
+            device["identifier"] = display_identifier(name)
+            device_samples = [
+                sample
+                for sample in reversed(data.get("samples", []))
+                if sample.get("device_id") == device.get("device_id")
+            ]
+            for key, output in (
+                ("level_percent", "battery_level"),
+                ("native_low", "native_battery_low"),
+            ):
+                sample = next(
+                    (item for item in device_samples if item.get(key) is not None),
+                    None,
+                )
+                device[output] = sample[key] if sample else device.get(output)
+            latest_cycle = next(
+                (
+                    cycle
+                    for cycle in reversed(cycles)
+                    if cycle.get("device_id") == device.get("device_id")
+                ),
+                {},
+            )
+            device["last_replaced_at"] = latest_cycle.get(
+                "started_at", device.get("last_replaced_at")
+            )
         tracked_devices = [
             device for device in tracked_devices if _matches(device, query)
         ]
@@ -374,6 +514,24 @@ def async_register_commands(hass: HomeAssistant) -> None:
             candidates = await async_discover_devices(
                 hass, tracked_device_ids=tracked, dismissed_device_ids=dismissed
             )
+            for candidate in candidates:
+                matched = next(
+                    (
+                        model
+                        for model in runtime["data"].get("models", [])
+                        if str(model.get("manufacturer") or "").casefold()
+                        == str(candidate.get("manufacturer") or "").casefold()
+                        and str(model.get("model") or "").casefold()
+                        == str(candidate.get("model") or "").casefold()
+                    ),
+                    None,
+                )
+                if matched:
+                    candidate["battery_type"] = matched.get("default_battery_type")
+                    candidate["battery_quantity"] = matched.get(
+                        "default_battery_quantity"
+                    )
+                    candidate["matched_model_id"] = matched.get("model_id")
         result = get_section_page(
             runtime["data"],
             msg["section"],
@@ -382,6 +540,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
             query=msg["query"],
             candidates=candidates,
         )
+        _enrich_panel_items(hass, runtime["data"], result)
         connection.send_result(msg["id"], result)
 
     @websocket_api.websocket_command(
@@ -506,9 +665,10 @@ def async_register_commands(hass: HomeAssistant) -> None:
         }.get(source_integration, "unknown")
         record = {
             "device_id": msg["device_id"],
-            "name": device_registry_value.name
+            "name": (device_registry_value.name_by_user or device_registry_value.name)
             if device_registry_value
-            else msg["device_id"],
+            else "Neznámy názov",
+            "area_id": device_registry_value.area_id if device_registry_value else None,
             "manufacturer": device_registry_value.manufacturer
             if device_registry_value
             else None,
@@ -554,6 +714,9 @@ def async_register_commands(hass: HomeAssistant) -> None:
         dismissed.discard(msg["device_id"])
         data["settings"]["dismissed_device_ids"] = sorted(dismissed)
         await runtime["storage"].async_save(data)
+        from .discovery_notifier import async_refresh_discovery_notice
+
+        await async_refresh_discovery_notice(hass)
         runtime["refresh_report_subscriptions"]()
         runtime["refresh_battery_subscriptions"]()
         _add_device_entities(hass, runtime, record)
@@ -583,6 +746,9 @@ def async_register_commands(hass: HomeAssistant) -> None:
         dismissed.add(msg["device_id"])
         runtime["data"]["settings"]["dismissed_device_ids"] = sorted(dismissed)
         await runtime["storage"].async_save(runtime["data"])
+        from .discovery_notifier import async_refresh_discovery_notice
+
+        await async_refresh_discovery_notice(hass)
         connection.send_result(
             msg["id"], {"dismissed": True, "device_id": msg["device_id"]}
         )
