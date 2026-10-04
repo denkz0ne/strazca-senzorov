@@ -224,6 +224,10 @@ async def test_panel_can_track_a_candidate_and_attach_runtime_entities(
     }
     assert await hass.config_entries.async_setup(entry.entry_id)
     client = await hass_ws_client()
+    events = []
+    hass.bus.async_listen(
+        BATTERY_ATTENTION_EVENT, lambda event: events.append(event.data)
+    )
     await client.send_json_auto_id(
         {
             "type": "sensor_guardian/track_device",
@@ -250,10 +254,6 @@ async def test_panel_can_track_a_candidate_and_attach_runtime_entities(
         await asyncio.sleep(0.02)
     assert len(guardian_entities) == 3
 
-    events = []
-    hass.bus.async_listen(
-        BATTERY_ATTENTION_EVENT, lambda event: events.append(event.data)
-    )
     hass.states.async_set(source.entity_id, "10", {"unit_of_measurement": "%"})
     await hass.async_block_till_done()
     assert runtime["data"]["devices"][0]["battery_attention"] is True
