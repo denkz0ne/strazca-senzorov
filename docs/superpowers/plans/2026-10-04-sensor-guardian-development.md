@@ -60,9 +60,9 @@
 
 **Interfaces:** `DOMAIN = "sensor_guardian"`; config flow creates one integration entry with no polling or entities yet; setup/unload are reversible and register/unregister only owned resources.
 
-- [ ] Add failing setup/config-flow coverage for the approved domain, duplicate config entry and successful unload.
-- [ ] Add only the dependencies and formatting/type/lint configuration required by the selected HA test environment.
-- [ ] Implement the empty integration scaffold and translations.
+- [x] Add setup/config-flow coverage (Linux runner verification pending) for the approved domain, duplicate config entry and successful unload.
+- [x] Add only the dependencies and formatting/type/lint configuration required by the selected HA test environment.
+- [x] Implement the empty integration scaffold and translations.
 - [ ] Run the scoped config-flow tests and static checks; confirm no background listener survives unload.
 - [ ] Commit the scaffold as one reviewable unit.
 
@@ -221,3 +221,5 @@ Milestone: [MVP Development](https://github.com/denkz0ne/strazca-senzorov/milest
 - `state_reported` is high-volume and requires entity filtering and immediate listener setup; do not subscribe globally: <https://developers.home-assistant.io/blog/2024/03/20/state_reported_timestamp/>.
 - Custom integrations need a manifest and integration folder; configuration flow scaffold includes test/translation infrastructure: <https://developers.home-assistant.io/docs/creating_component_index/> and <https://developers.home-assistant.io/docs/creating_integration_file_structure/>.
 - Storage threading/serialization behavior changed in 2025.11 and must be checked against the selected minimum: <https://developers.home-assistant.io/blog/2025/11/25/storage-helper-opt-in-serialize-in-executor/>.
+
+

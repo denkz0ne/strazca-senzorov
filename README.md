@@ -53,3 +53,13 @@ Development is underway in stages tracked by [GitHub milestone MVP Development](
 4. Keep long-term learning data in Strážca storage; do not depend on Recorder retention.
 5. Make discovery and recommendations reviewable by the user.
 6. Do not notify repeatedly for one continuing incident; debounce, deduplicate and support snoozing.
+
+# Development status
+
+The integration scaffold is under active development. It targets Home Assistant Core 2026.9+ and currently creates one global config entry without entities, device changes, listeners or runtime Battery Notes dependency.
+
+## Local development
+
+Use Python 3.14, then install `requirements_test.txt`. Run `ruff check .` and `pytest -q`. The GitHub Actions workflow runs the same checks on Linux, which is required by Home Assistant Core's test runtime.
+
+See [the development plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress log](docs/PROGRESS.md) for scope and stage status.

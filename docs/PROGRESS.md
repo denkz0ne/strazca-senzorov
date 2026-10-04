@@ -20,3 +20,10 @@ This log records completed work and verification for the staged development plan
 - Added `docs/decisions/0001-ha-compatibility.md` and `docs/decisions/0002-entity-linking-and-report-evidence.md`; updated the open questions and plan.
 - No product code or tests were changed in Task 0. Verification: target version read succeeded; Core 2026.9.4 source fetch succeeded; expected ADR/plan paths exist; `git diff --check` passed.
 - Next: Task 1 scaffold and development checks (GitHub issue #2).
+
+## 2026-10-04 — Task 1 in progress: integration scaffold
+
+- Added the Python 3.14/HA 2026.9.4 test dependencies, Ruff configuration and Linux GitHub Actions validation workflow. Local Windows execution cannot collect HA tests because Core imports POSIX `fcntl`; no WSL or Docker runtime is available here, so full pytest verification is delegated to the repository workflow.
+- Added three config-flow/setup tests, custom integration fixture support, manifest, single-instance flow, reversible empty setup/unload and English/Slovak translations.
+- Documented development status and local commands in README. Runtime has no Battery Notes dependency, entities or report listener at this scaffold stage.
+- Local verification so far: Ruff passes; `git diff --check` passes. HA pytest is pending GitHub Actions Linux run.

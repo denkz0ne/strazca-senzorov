@@ -1,0 +1,51 @@
+"""Tests for the global Sensor Guardian config entry."""
+
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import EVENT_STATE_REPORTED
+from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+DOMAIN = "sensor_guardian"
+
+
+async def test_user_flow_creates_the_global_entry(hass):
+    """The user flow creates exactly one titled global config entry."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": "user"},
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Strážca senzorov"
+    assert result["data"] == {}
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+
+
+async def test_user_flow_aborts_if_an_entry_already_exists(hass):
+    """A second global config entry is rejected before another is created."""
+    existing = MockConfigEntry(domain=DOMAIN, data={}, unique_id="global")
+    existing.add_to_hass(hass)
+
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": "user"},
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "single_instance_allowed"
+    assert len(hass.config_entries.async_entries(DOMAIN)) == 1
+
+
+async def test_empty_entry_sets_up_and_unloads_without_entities(hass):
+    """The empty scaffold unloads cleanly and registers no product entities."""
+    entry = MockConfigEntry(domain=DOMAIN, data={}, unique_id="global")
+    entry.add_to_hass(hass)
+
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert er.async_get(hass).async_entries_for_config_entry(entry.entry_id) == []
+    assert hass.bus.async_listeners().get(EVENT_STATE_REPORTED, 0) == 0
+
+    assert await hass.config_entries.async_unload(entry.entry_id)
+    assert entry.state is ConfigEntryState.NOT_LOADED
