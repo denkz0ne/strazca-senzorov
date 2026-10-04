@@ -12,7 +12,7 @@ DOMAIN = "sensor_guardian"
 
 async def test_custom_component_is_discovered(hass):
     """The Home Assistant loader finds the packaged custom integration."""
-    integrations = await async_get_custom_components(hass)
+    print("HA_FLAGS", hass.config.safe_mode, hass.config.recovery_mode)\n    print("CUSTOM_PATH", list(__import__("custom_components").__path__))\n    integrations = await async_get_custom_components(hass)\n    print("INTEGRATION_RESULT", integrations)
     assert DOMAIN in integrations
 
 
@@ -56,3 +56,4 @@ async def test_empty_entry_sets_up_and_unloads_without_entities(hass):
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
+
