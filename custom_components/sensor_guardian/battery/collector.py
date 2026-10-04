@@ -64,7 +64,10 @@ def async_subscribe_battery(
         if not isinstance(timestamp, datetime):
             timestamp = datetime.now(UTC)
         for device_id, _kind in matches:
-            _record_current_device(hass, runtime, device_id, timestamp)
+            # State/report listeners can be dispatched from HA's worker thread.
+            # Marshal entity writes, persistence scheduling and follow-up tasks
+            # onto the Home Assistant event loop.
+            hass.add_job(_record_current_device, hass, runtime, device_id, timestamp)
 
     entity_ids = sorted(entity_devices)
     unsubscribers = [
