@@ -1,10 +1,25 @@
 # Development stages
 
-Order is provisional and intended to reduce rework by validating data access before investing in the panel.
+The original sequence was a planning order. Implementation was delivered through GitHub tasks 0–9, and responsibilities moved between tasks as HA API probes and tests exposed dependencies. Current state is recorded below; completed implementation does not mean release validation is complete.
+
+## Current stage status
+
+| Stage | State | Evidence / remaining work |
+| --- | --- | --- |
+| 0 — specification and compatibility | Implemented | ADRs record the Core floor, device linking and filtered report evidence. Re-run compatibility checks before release. |
+| 1 — integration scaffold and storage | Implemented | Config flow, setup/unload, schema 1.1, translations and tests are present. |
+| 2 — Battery Notes import and model catalogue | Implemented | One-time preview/apply, backup/receipt, provenance and bundled converted catalogue; live import and restore remain unverified. |
+| 3 — battery lifecycle and estimate | Implemented | Samples, replacement cycles and conservative per-device estimator; real-world estimate quality still needs observation. |
+| 4 — discovery and tracking | Implemented on PR #15; CI passed | Compact battery/device/overview tables, name/area identity, selection filters and native discovery notices are implemented. GitHub Actions run `37235438288` passed Ruff, JavaScript/JSON validation, all 73 tests and the HACS action. Per-panel badge remains unsupported by HA's public API; live HA pairing/viewport review remains pending. |
+| 5 — availability and reporting learner | Implemented | Filtered source listeners and learned profiles; provider-specific validation and false-positive calibration remain. |
+| 6 — cause evidence and incident clustering | Implemented | Rule points, unknown threshold and incident revisions are covered in CI; labeled live incident calibration remains. |
+| 7 — entities, actions and events | Implemented | Compact entities and version-1 actions/events exist; release compatibility review remains. |
+| 8 — panel and authenticated API | Implemented, live smoke review partial | Compact tables, sticky section/search controls and discovery notice pass local syntax/lint/frontend asset checks; CI and actual HA browser layout/HACS clean-install/update remain release checks. |
+| 9 — release hardening | In progress | See `docs/RELEASE_CHECKLIST.md`; no stable tag/release has been made. |
 
 ## Stage 0 — specification and compatibility probe
 
-Set domain/display name, supported HA minimum, storage strategy, entity contract and migration scope. Inspect actual target HA APIs and Battery Notes version/storage. Validate device linking, `last_reported`/selected report evidence, Recorder/statistics read access, and disabled signal entity handling.
+Set domain/display name, supported HA minimum, storage strategy, entity contract and migration scope. Inspect actual target HA APIs and Battery Notes version/storage. Validate device linking, `last_reported`/selected report evidence, Recorder/statistics read access, and disabled signal entity handling. Domain and initial Core floor are recorded in `docs/decisions/0001-ha-compatibility.md`; helper linking and report evidence are in `docs/decisions/0002-entity-linking-and-report-evidence.md`.
 
 ## Stage 1 — integration scaffold
 
@@ -36,7 +51,7 @@ Add grouping, acknowledgement, deduplication, cooldown/snooze, compact events an
 
 ## Stage 8 — panel
 
-Build overview, battery management, discovery, incidents and settings on the stable backend/API. Add detail visualizations and migration/manage flows.
+MVP implementation: self-hosted admin-only Home Assistant custom panel, authenticated paginated WebSocket API, overview, battery catalogue/history and assignments, discovery recommendations, incidents, settings, Battery Notes preview/apply, and local battery-model additions. Release hardening still needs a live HA/HACS browser and upgrade pass.
 
 ## Stage 9 — validation and release
 

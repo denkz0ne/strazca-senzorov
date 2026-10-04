@@ -6,13 +6,14 @@
 
 **Architecture:** Start with a small helper integration and a generic HA evidence collector. Keep durable configuration, observations, profiles, replacement cycles and incidents in versioned Strážca storage. Separate availability state, battery estimation and cause classification; connect them through normalized evidence and incident records. Source entities stay authoritative, while a minimal HA entity/event/action layer serves automations and the panel serves detail.
 
-**Tech Stack:** Python custom integration for Home Assistant; HA config/device/entity registries, storage and event APIs; HA entity platforms and service actions; a bundled web frontend and HA panel registration (implementation mechanism to validate); GitHub Actions/HACS packaging. Choose compatible versions from the target HA environment during Task 0 rather than assuming a minimum.
+**Tech Stack:** Python custom integration for Home Assistant Core `2026.9+`; HA config/device/entity registries, storage and event APIs; HA entity platforms and service actions; a bundled web frontend and HA panel registration (implementation mechanism to validate); GitHub Actions/HACS packaging.
 
 **Spec:** `README.md`, `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/MIGRATION.md`, `docs/AVAILABILITY.md`, `docs/HOME_ASSISTANT.md`, `docs/FRONTEND.md`, `docs/ROADMAP.md`, `docs/OPEN_QUESTIONS.md`.
 
 ## Global Constraints
 
-- Integration domain is provisionally `sensor_guardian`; validate it before publishing the first manifest because the domain is costly to change.
+- Integration domain is `sensor_guardian`; validate custom-integration compatibility again before the first public release because the domain is costly to change.
+- Initial target is HA Core `2026.9.4`; proposed minimum is Core `2026.9`, pending compatibility validation before release.
 - Battery Notes is a one-time migration source only; Strážca must not require it at runtime and the user removes it only after verifying a successful import/deployment.
 - Runtime observations come from HA device entities, including battery %, native battery-low, voltage, availability, signal/link-quality and report-time evidence where available.
 - Never listen globally to high-volume `state_reported`; use a filtered subscription for explicitly selected entities and validate cost at the supported HA minimum.
@@ -42,11 +43,11 @@
 
 **Interfaces:** produces the supported HA version floor, a checked integration/manifest pattern, entity-to-device linking method, report-time listener constraints, storage API expectations and a decision on domain `sensor_guardian`.
 
-- [ ] Record the target Home Assistant Core/OS version from the intended deployment; if that host cannot be read, leave the minimum version unselected and document a bounded supported-version candidate matrix from official docs.
-- [ ] Verify the current helper entity linking pattern against the selected minimum and a current Core release; record exact imports/APIs and rejected legacy patterns.
-- [ ] Verify `last_reported`/`state_reported` semantics and filtered subscription requirements; record the intended selected-entity strategy and startup behavior.
-- [ ] Verify custom integration manifest, config flow and storage requirements for the chosen release range.
-- [ ] Decide which questions remain blockers for a production release; update the open-question list and roadmap.
+- [x] Record target Home Assistant Core version `2026.9.4` from `/config/.HA_VERSION`; set the initial minimum at Core `2026.9`.
+- [x] Verify helper linking against Core 2026.9.4 and current official guidance; record `homeassistant.helpers.device.async_entity_id_to_device` and reject source-device config-entry attachment.
+- [x] Verify `last_reported`/`state_reported` semantics and event filtering requirements; record selected-entity tracking and startup behavior.
+- [x] Verify custom integration manifest, config flow and storage requirements for the chosen release range.
+- [x] Decide open blockers for a production release; update this plan and the open-question list.
 
 **Exit check:** decisions cite versioned official Home Assistant documentation and identify any behavior requiring a running-instance probe. Do not ship a manifest until the domain and version floor are explicit.
 
@@ -59,11 +60,11 @@
 
 **Interfaces:** `DOMAIN = "sensor_guardian"`; config flow creates one integration entry with no polling or entities yet; setup/unload are reversible and register/unregister only owned resources.
 
-- [ ] Add failing setup/config-flow coverage for the approved domain, duplicate config entry and successful unload.
-- [ ] Add only the dependencies and formatting/type/lint configuration required by the selected HA test environment.
-- [ ] Implement the empty integration scaffold and translations.
-- [ ] Run the scoped config-flow tests and static checks; confirm no background listener survives unload.
-- [ ] Commit the scaffold as one reviewable unit.
+- [x] Add setup/config-flow coverage (Linux runner verification pending) for the approved domain, duplicate config entry and successful unload.
+- [x] Add only the dependencies and formatting/type/lint configuration required by the selected HA test environment.
+- [x] Implement the empty integration scaffold and translations.
+- [x] Run the scoped config-flow tests and static checks; confirm no background listener survives unload.
+- [x] Commit the scaffold as one reviewable unit.
 
 **Exit check:** the integration can be loaded and unloaded in the declared development environment without changing source devices or registering product entities.
 
@@ -76,11 +77,11 @@
 
 **Interfaces:** typed versioned records for model definitions, tracked devices, samples, battery cycles, availability profiles, dependencies, incidents and settings as defined in `docs/DATA_MODEL.md`; storage owns load/save/migrate/export and does not call the Recorder for ongoing persistence.
 
-- [ ] Pin a JSON-serializable schema and fixtures for an empty installation and one device with history.
+- [x] Pin a JSON-serializable schema and fixtures for an empty installation and one device record.
 - [ ] Test initial load, atomic save/reload, malformed data preservation, idempotent migration and unknown future schema handling.
-- [ ] Implement the HA Store wrapper and pure record conversion/validation functions.
-- [ ] Run the scoped storage/migration tests; inspect that the original data remains recoverable on failure.
-- [ ] Commit.
+- [x] Implement the HA Store wrapper and pure record conversion/validation functions.
+- [x] Run the scoped storage/migration tests; inspect that the original data remains recoverable on failure.
+- [x] Commit.
 
 ## Task 3: Discovery, tracking configuration and Battery Notes importer
 
@@ -92,13 +93,13 @@
 
 **Interfaces:** discovery returns candidates with source entity references, confidence, explanation and one suggested mode (`battery_and_availability`, `availability_only`, `battery_only`, `ignore`, `unknown`). Import preview returns matched/unmatched counts and proposed updates with provenance; apply is idempotent and creates a receipt. No import runs silently.
 
-- [ ] Pin the Battery Notes commit/release and inspect the actual data license/notice before copying any row.
-- [ ] Add fixtures covering model aliases, duplicate model variants, multiple battery entities, missing device IDs, and rechargeable/mains hints.
-- [ ] Implement device/entity registry discovery and candidate ranking; preserve manual choice and dismissed candidates.
-- [ ] Implement an import preview for catalogue, per-device settings, Recorder history and long-term statistics where APIs permit; keep exact and inferred evidence separate.
-- [ ] Test partial import, repeat import, backup/restore, stale/unmatched source device and malformed source data.
-- [ ] Add explicit, reviewable signal-entity enable recommendations only where registry/provider evidence supports them; do not auto-enable in discovery.
-- [ ] Run scoped discovery/migration verification and commit catalogue provenance with the imported dataset.
+- [x] Pin the Battery Notes commit/release and inspect the actual data license/notice before copying any row.
+- [x] Add fixtures covering duplicate model records/variants, missing device IDs, and rechargeable/irreplaceable hints.
+- [x] Implement device/entity registry discovery and candidate ranking; accept persisted tracked/dismissed IDs and preserve manual settings in import merges.
+- [x] Implement preview for catalogue count and per-device settings; add a bounded, selected-entity Recorder/history statistics adapter with distinct exact/inferred provenance.
+- [x] Test partial import, repeat import, backup/restore, stale/unmatched source device and malformed source data.
+- [x] Add explicit signal-entity recommendations; discovery does not enable entities.
+- [x] Run scoped discovery/migration verification and commit catalogue provenance with the imported dataset.
 
 **Exit check:** Strážca operates with Battery Notes absent after a verified import; no runtime code calls Battery Notes or its remote repository.
 
@@ -111,12 +112,12 @@
 
 **Interfaces:** pure functions normalize readings, detect replacement candidates, maintain a cycle and return estimate `{remaining_days_range, replacement_window, confidence, reason_codes}`; they do not create HA entities or notifications.
 
-- [ ] Define bounds/quality flags for invalid %, voltage and timestamps; cover percentage jitter and stale reports.
-- [ ] Record only meaningful changes/checkpoints and flag low-battery, significant voltage changes and confirmed replacement.
-- [ ] Distinguish disposable replacement from rechargeable charge; require confirmation for uncertain automatic replacement candidates.
-- [ ] Implement robust trend estimation plus per-device cycle-history comparison; expose no exact ETA below the documented sample-quality gate.
-- [ ] Detect abnormal drain against the device's own prior cycles and mark weak/coarse sensor reports as low quality.
-- [ ] Test flat, noisy, steep-drop, sparse, reset-after-replacement and charging traces; run battery tests and commit.
+- [x] Define bounds/quality flags for invalid %, voltage and timestamps; cover percentage jitter and stale reports.
+- [x] Record only meaningful changes/checkpoints and flag low-battery, significant voltage changes and confirmed replacement.
+- [x] Distinguish disposable replacement from rechargeable charge; require confirmation for uncertain automatic replacement candidates.
+- [x] Implement robust trend estimation plus per-device cycle-history comparison; expose no ETA below the documented sample-quality gate.
+- [x] Detect abnormal drain against the device's own prior cycles and mark weak/coarse sensor reports as low quality.
+- [x] Test flat, noisy, steep-drop, sparse, reset-after-replacement and charging traces; run battery tests and commit.
 
 ## Task 5: Generic availability and reporting-pattern learner
 
@@ -127,10 +128,10 @@
 
 **Interfaces:** collector observes only tracked sentinel/native-availability entities; profile learner returns interval distribution and pattern confidence; engine emits health transitions without assigning a cause.
 
-- [ ] Test stable, jittery, irregular and event-only input traces, including `unknown`/`unavailable` source states.
-- [ ] Add explicit-native-availability precedence, selected sentinel subscriptions with event filtering and required immediate initialization, startup grace and clean unsubscribe on unload.
-- [ ] Implement per-device degraded/stale/offline/recovering transitions and recovery stability window; do not use one global one-hour threshold.
-- [ ] Confirm disabled/noisy entities do not cause unbounded event work; run scoped availability checks and commit.
+- [x] Test stable, jittery, irregular and event-only input traces, including `unknown`/`unavailable` source states.
+- [x] Add explicit-native-availability precedence, selected sentinel subscriptions with event filtering and immediate state seeding, startup grace and clean unsubscribe on unload.
+- [x] Implement per-device degraded/stale/offline/recovering transitions and recovery stability window; do not use one global one-hour threshold.
+- [x] Confirm disabled/noisy entities do not cause unbounded event work; run scoped availability checks and commit.
 
 ## Task 6: Evidence, dependencies and clustered incidents
 
@@ -141,11 +142,11 @@
 
 **Interfaces:** scoring consumes normalized timestamped evidence and returns ordered cause scores plus explanations; classification returns `unknown` unless the validated threshold and margin are met. Incident manager supports open/update/close, parent/affected devices, acknowledgement, snooze and cause revision audit.
 
-- [ ] Add labeled fixtures for low-battery dropout, one-device RF dropout, coordinator/source outage, simultaneous shared outage, recovery without intervention and conflicting evidence.
-- [ ] Implement documented score reasons and ensure raw scores are not exposed as probabilities unless calibrated.
-- [ ] Correlate incidents through overlap and known shared dependencies; avoid grouping unrelated single-device incidents.
-- [ ] Add cause revision history and explicit confirmed/inferred classification provenance.
-- [ ] Run scoring/correlation tests and review false-positive scenarios; commit.
+- [x] Add labeled fixtures for low-battery dropout, one-device RF dropout, coordinator/source outage, simultaneous shared outage, recovery without intervention and conflicting evidence.
+- [x] Implement documented score reasons and ensure raw scores are not exposed as probabilities unless calibrated.
+- [x] Correlate incidents through overlap and known shared dependencies; avoid grouping unrelated single-device incidents.
+- [x] Add cause revision history and explicit confirmed/inferred classification provenance.
+- [x] Run scoring/correlation tests and review false-positive scenarios; commit.
 
 ## Task 7: Minimal HA entities, actions and event contracts
 
@@ -156,12 +157,12 @@
 
 **Interfaces:** initially expose per tracked device `guardian_problem`, optional `guardian_status`, and battery-only `battery_attention`; service actions use device/incident selectors. Fire versioned incident/recovery/battery-attention/replacement events from `docs/HOME_ASSISTANT.md`.
 
-- [ ] Test entity unique IDs, availability, state transitions, removal and source-device linking on the supported HA version.
-- [ ] Keep signal, battery type, quantity, cycle stats and confidence detail out of default entity inventory.
-- [ ] Implement mark-replaced, confirm-cause, snooze and resume actions with input validation and idempotence.
-- [ ] Test event names/payload version, transitions only (no duplicate spam), no secret/unrelated state leakage and unload cleanup.
-- [ ] Resolve whether guardian status and guardian problem are both default or one is optional; update docs and translations before API freeze.
-- [ ] Run scoped entity/action/event verification and commit.
+- [x] Test entity unique IDs, availability, state transitions, removal and source-device linking on the supported HA version.
+- [x] Keep signal, battery type, quantity, cycle stats and confidence detail out of default entity inventory.
+- [x] Implement mark-replaced, confirm-cause, snooze and resume actions with input validation and idempotence.
+- [x] Test event names/payload version, transitions only (no duplicate spam), no secret/unrelated state leakage and unload cleanup.
+- [x] Resolve whether guardian status and guardian problem are both default or one is optional; update docs and translations before API freeze.
+- [x] Run scoped entity/action/event verification and commit.
 
 ## Task 8: Side panel and internal API
 
@@ -172,11 +173,11 @@
 
 **Interfaces:** authenticated HA WebSocket commands provide paginated overview, device detail, battery catalogue/history, discovery decisions, incidents and settings; mutations call the same backend operations as HA actions. Frontend never owns durable state.
 
-- [ ] Decide frontend packaging/panel registration approach compatible with supported HA versions and HACS install/update.
-- [ ] Define validated read/write command schemas, pagination and error responses; reject unknown device/model IDs safely.
-- [ ] Implement tabs for Overview, Batteries, Devices, Incidents and Settings from `docs/FRONTEND.md`.
-- [ ] Verify keyboard navigation, narrow viewport, empty/partial data, `unknown` cause, import preview and disabled-signal recommendation states.
-- [ ] Run API/frontend build and focused UI checks; commit.
+- [x] Decide frontend packaging/panel registration approach compatible with supported HA versions and HACS install/update: self-hosted custom panel module inside the integration directory, no external runtime assets/build dependency.
+- [x] Define validated read/write command schemas, pagination and error responses; reject unknown device/model IDs safely.
+- [x] Implement tabs for Overview, Batteries, Devices, Incidents and Settings from `docs/FRONTEND.md`.
+- [x] Review keyboard focus/semantics, narrow viewport rules, empty/partial data, `unknown` cause, import preview and disabled-signal recommendation states in the self-hosted UI and API.
+- [x] Run API/frontend syntax and focused integration checks; commit. Live HA browser inspection remains a release gate in Task 9.
 
 ## Task 9: Release hardening and HACS delivery
 
@@ -185,9 +186,10 @@
 - Modify: manifest/version and translations as required
 
 - [ ] Validate install, config flow, startup, unload, restart, storage upgrade, export/restore and HACS packaging against the selected HA versions.
-- [ ] Validate no Battery Notes runtime dependency and no global `state_reported` listener.
-- [ ] Review generated entity count, report-processing volume, alert deduplication and explanatory cause evidence on a labeled fixture set.
-- [ ] Document supported provider evidence, known limitations, one-time migration and removal procedure.
+- [x] Validate no Battery Notes manifest/runtime dependency and no global `state_reported` listener.
+- [x] Review generated entity count, selected-entity report-processing volume, alert deduplication and explanatory cause evidence on a labeled fixture set.
+- [x] Document supported provider evidence, known limitations, one-time migration and removal procedure.
+- [x] Add HACS packaging metadata, HACS repository validation to CI, JavaScript syntax/JSON checks, changelog and first-release checklist.
 - [ ] Publish a tagged release only after CI passes and the user's intended deployment path is confirmed.
 
 ## Execution and reporting cadence

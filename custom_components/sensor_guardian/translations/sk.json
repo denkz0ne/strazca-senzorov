@@ -1,0 +1,45 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "guardian_problem": {"name": "Problém zariadenia"},
+      "battery_attention": {"name": "Pozornosť batérii"}
+    },
+    "sensor": {"guardian_status": {"name": "Stav zariadenia"}}
+  },
+  "services": {
+    "mark_battery_replaced": {
+      "name": "Označiť výmenu batérie",
+      "description": "Zaznamenať potvrdenú výmenu batérie.",
+      "fields": {
+        "device_id": {"name": "Zariadenie"},
+        "battery_type": {"name": "Typ batérie"},
+        "battery_quantity": {"name": "Počet batérií"},
+        "brand": {"name": "Značka"},
+        "reason": {"name": "Dôvod výmeny"}
+      }
+    },
+    "confirm_incident_cause": {
+      "name": "Potvrdiť príčinu incidentu",
+      "description": "Potvrdiť alebo opraviť určenú príčinu.",
+      "fields": {"incident_id": {"name": "Incident"}, "cause": {"name": "Príčina"}}
+    },
+    "snooze_device": {
+      "name": "Odložiť upozornenia zariadenia",
+      "description": "Pozastaviť upozornenia incidentov sledovaného zariadenia.",
+      "fields": {"device_id": {"name": "Zariadenie"}, "snooze_minutes": {"name": "Dĺžka odloženia"}}
+    },
+    "resume_device": {
+      "name": "Obnoviť upozornenia zariadenia",
+      "description": "Obnoviť upozornenia incidentov sledovaného zariadenia.",
+      "fields": {"device_id": {"name": "Zariadenie"}}
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Strážca senzorov",
+        "description": "Pridá globálnu inštanciu Strážcu senzorov."
+      }
+    }
+  }
+}

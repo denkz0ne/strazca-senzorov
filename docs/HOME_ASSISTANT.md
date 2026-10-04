@@ -2,42 +2,41 @@
 
 The user wants automation-ready summaries with detailed statistics kept in the Strážca panel. Avoid mirroring source battery/signal measurements.
 
-## Proposed minimal entities
+## Implemented minimal entities
 
-Per tracked device, subject to HA entity/device-registry feasibility:
+Per tracked device, the initial inventory is three entities at most:
 
-- `binary_sensor.<device>_guardian_problem`: on when actionable health/availability incident exists; useful summary attributes can include `status`, `cause`, `confidence`, `since` and `parent_incident_id`.
-- `sensor.<device>_guardian_status`: compact enum (`healthy`, `degraded`, `stale`, `offline`, `recovering`, `paused`, `unknown`). Consider whether this duplicates the binary summary enough to make one entity optional.
-- For battery-tracked devices only, `binary_sensor.<device>_battery_attention`: on for replace-soon, critical or abnormal-drain state. Detailed estimate stays internal unless later automation needs justify one additional entity.
+- `binary_sensor.<device>_guardian_problem`: on when availability needs attention, with only status, cause, qualitative confidence, start time and parent incident ID attributes.
+- `sensor.<device>_guardian_status`: compact enum (`initializing`, `healthy`, `degraded`, `stale`, `offline`, `recovering`, `paused`, `unknown`). Keep this alongside the problem flag: automations often need both a simple boolean and the current state label.
+- For battery-tracked devices only, `binary_sensor.<device>_battery_attention`: on for low/replace-soon/abnormal drain. Detailed estimate remains internal.
 
 Create no default entities for battery type, quantity, signal, LQI/RSSI, cycle age, confidence statistics, outage counts or trend rates. They remain in the panel. Original source entities remain authoritative.
 
-## Events for automations
+## Implemented events for automations
 
-Proposed event types:
+Version 1 event types (payloads carry `version: 1`; incident/recovery events include compact status, cause, qualitative confidence, severity, incident ID and timestamp; grouped outages may include affected device IDs):
 
 - `sensor_guardian_incident`
 - `sensor_guardian_recovered`
 - `sensor_guardian_battery_attention`
 - `sensor_guardian_battery_replaced`
 
-Payloads should be versioned and compact: device ID/name, status, cause, confidence, severity, incident ID, timestamp; battery events may add current level and estimated remaining range when available. Avoid publishing sensitive unrelated entity attributes.
+Payloads use `version: 1` and compact fields: `device_id`, `device_name`, `status`, `cause`, `confidence`, `severity`, `incident_id`, `timestamp`; grouped outage events may include `device_ids`. Battery replacement adds `battery_type`, `battery_quantity` and `cycle_id`. Unrelated HA attributes are excluded.
 
-## Actions/services
+## Implemented actions/services
 
-Proposed actions using HA device selectors:
+The `sensor_guardian` action domain currently exposes:
 
-- `sensor_guardian.mark_battery_replaced` (type/quantity, optional brand/reason/date)
-- `sensor_guardian.confirm_incident_cause` (incident/device, selected cause)
-- `sensor_guardian.snooze_device`
-- `sensor_guardian.resume_device`
-- optional import/diagnostic actions if they can be safely exposed through config/panel instead
+- `mark_battery_replaced`: required `device_id`; optional `battery_type`, `battery_quantity` (1–20), `brand`, `reason`, `replaced_at` (ISO timestamp).
+- `confirm_incident_cause`: required `incident_id` and `cause` (`battery`, `connectivity`, `gateway_upstream`, `integration`, `power_or_network`, `unknown`).
+- `snooze_device`: required `device_id`; optional `snooze_minutes` (1–10,080; default 60).
+- `resume_device`: required `device_id`.
 
-Panel buttons should call the same backend actions so behavior is consistent. Final naming/schema must follow current HA conventions during implementation.
+The panel uses these same backend actions for replacement, cause confirmation and snooze/resume behavior. The separate admin-only panel WebSocket commands are documented in [the developer guide](DEVELOPER_GUIDE.md).
 
 ## Linking and discovery
 
-Prefer attaching helper entities to the original HA device when supported by the supported HA minimum. Discovery proposals should be actionable and dismissible: battery plus availability, availability only, battery only, ignore/unknown. For necessary disabled LQI/RSSI/link-quality entities, explain why they help and offer an explicit enable recommendation; enabling policy must be verified against HA registry APIs and provider behavior.
+Helper entities attach to the original HA device through the supported helper-integration API. Discovery proposals are actionable and dismissible: battery plus availability, availability only, battery only, ignore/unknown. Necessary disabled LQI/RSSI/link-quality entities may be recommended, but are not enabled automatically.
 
 ## Notifications
 

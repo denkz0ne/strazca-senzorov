@@ -8,7 +8,9 @@ Health state and likely cause are separate outputs. An unavailable entity is evi
 
 Use explicit source availability when available. Otherwise learn reporting behavior per device from selected sentinel entities and report timestamps. Calculate robust intervals (median and upper quantiles plus dispersion); do not apply one global timeout. A device that reports only on events cannot be declared offline from silence unless another reliable source establishes expected activity.
 
-Candidate transition logic: healthy → degraded → stale → offline as missed expected reporting windows accumulate; recovering after a fresh report; healthy after a stability window. Threshold multipliers and stability windows remain tunable/open. Startup grace prevents alerts while HA and source integrations initialize.
+Candidate transition logic: healthy → degraded → stale → offline as missed per-device learned reporting windows accumulate; recovering after a fresh report; healthy after a stability window. The initial implementation uses 1.25× p90 for degraded, 1.5× p95 for stale and 3× p95 for offline, with a 30-second minimum. Explicit native availability takes precedence. Devices with event-only or low-confidence report patterns stay `unknown` on silence rather than being declared offline. Startup grace defaults to five minutes and recovery stability to two minutes; values are conservative implementation defaults to revisit against real devices.
+
+The collector observes only the selected sentinel IDs and any explicitly selected native availability entity. It listens separately for state changes and same-state `state_reported` events, then seeds the current states immediately after registering listeners. A bounded 512-report rolling timestamp window feeds each device's independent median/p90/p95 and jitter profile. Unload removes both filtered subscriptions and cancels pending persistence.
 
 ## Cause hypotheses
 
@@ -21,9 +23,9 @@ Candidate transition logic: healthy → degraded → stale → offline as missed
 
 ## Scoring and explanation
 
-Use an explainable evidence table, with positive and negative evidence for each hypothesis. Avoid a black-box label. Candidate examples: battery at 3% plus a sustained steep decline increases battery likelihood; 12 sibling devices failing together while the coordinator is unavailable strongly favors gateway/upstream. Scores/confidence should be calibrated and tested against labeled incidents before being exposed as probabilities.
+Use an explainable evidence table, with positive and negative evidence for each hypothesis. The initial rule-based engine uses named evidence points: critically low percent, native battery-low, abnormal drain, signal decline, weak RSSI/LQI, explicit coordinator/gateway/source-entry loss, shared outage count and recovery without battery intervention. Every applied rule appears with its signed point contribution. Candidate examples: battery at 3% plus a native low flag strongly increases battery points; several siblings failing together while their coordinator is unavailable strongly favors gateway/upstream. The score is an internal evidence-point total, never a percentage/probability.
 
-Initial proposed classification gate (to validate, not a committed constant): top score at least 60 and at least 15 points above the runner-up. Otherwise `unknown`. Keep confidence semantics explicit; raw scores are not probabilities unless calibrated.
+Initial classification gate: top score at least 60 and at least 15 points above the runner-up. Otherwise `unknown`. The rules produce only low/medium/high confidence labels from point bands; those labels are qualitative and are not calibrated probabilities.
 
 ## Correlation and revision
 

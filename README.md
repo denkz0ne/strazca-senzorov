@@ -1,6 +1,6 @@
 # Strážca senzorov
 
-**Strážca senzorov** is a planned Home Assistant custom integration for monitoring device availability, battery condition and likely outage causes. Its primary record is the HA device; battery management is one capability of that device, not the whole product.
+**Strážca senzorov** is a Home Assistant custom integration for monitoring device availability, battery condition and likely outage causes. Its primary record is the HA device; battery management is one capability of that device, not the whole product. The current integration and panel are implemented on the development branch, but the project has no stable tagged release and live behavior still needs release validation.
 
 The integration is intended to help answer:
 
@@ -21,6 +21,10 @@ The integration is intended to help answer:
 
 ## Documentation map
 
+- [Používateľský návod](docs/USER_GUIDE.md) — first setup, tracking, battery import, automation and troubleshooting
+- [Vývojársky návod](docs/DEVELOPER_GUIDE.md) — development checks, module map, storage/API contracts and releases
+- [Documentation policy](docs/DOCUMENTATION_POLICY.md) — required docs/changelog updates for features and hotfixes
+
 - [Architecture](docs/ARCHITECTURE.md) — component boundaries and data flow
 - [Data model](docs/DATA_MODEL.md) — device, battery cycle, sample, profile and incident records
 - [Battery Notes migration](docs/MIGRATION.md) — one-time import and history reconstruction
@@ -32,16 +36,22 @@ The integration is intended to help answer:
 - [Progress log](docs/PROGRESS.md) — completed work and verification reports
 - [Open questions](docs/OPEN_QUESTIONS.md) — decisions still to make
 - [Third-party data and attribution](THIRD_PARTY_DATA.md) — Battery Notes snapshot requirements
+- [First-release checklist](docs/RELEASE_CHECKLIST.md) — required live HA/HACS validation and release gates
+- [Changelog](CHANGELOG.md) — release history (no release has been published)
 
 ## Proposed identity
 
 Working display name: **Strážca senzorov** (English: **Sensor Guardian**).
 
-Working integration domain: `sensor_guardian`. This is a proposal to validate against Home Assistant conventions before the first integration release; changing a domain after release is costly.
+Integration domain: `sensor_guardian`.
 
-## Status
+Compatibility target: the connected instance reports Home Assistant Core `2026.9.4`; the initial support floor is Core `2026.9`, pending release compatibility runs.
 
-This repository currently contains the product/design brief. It does not yet contain an installable integration. The architecture, schemas and thresholds below are design proposals; values marked as open must be settled during implementation or validation.
+## Current behavior and status
+
+Development is underway in stages tracked by [GitHub milestone MVP Development](https://github.com/denkz0ne/strazca-senzorov/milestone/1). See the [detailed plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress report](docs/PROGRESS.md). The development branch is not a tagged release, and live HA/HACS installation still needs release validation. Some thresholds and design questions remain proposals.
+
+There is no published release yet. For development, copy `custom_components/sensor_guardian` into Home Assistant's `custom_components` directory and restart Home Assistant. On first open, use **Devices** to review candidates in the compact table and explicitly track selected devices; discovery alone never starts tracking. The panel uses HA friendly names and areas, shows `ZB###`/`ZBT###` only when present in the name, and keeps navigation/search available while scrolling. New discovery candidates update one native Home Assistant notification with the pending count. Clean HACS install/update and live panel checks remain release gates. Do not remove Battery Notes until its import has been previewed, backed up, applied and verified in Strážca.
 
 ## Principles
 
@@ -51,3 +61,13 @@ This repository currently contains the product/design brief. It does not yet con
 4. Keep long-term learning data in Strážca storage; do not depend on Recorder retention.
 5. Make discovery and recommendations reviewable by the user.
 6. Do not notify repeatedly for one continuing incident; debounce, deduplicate and support snoozing.
+
+# Development status
+
+The MVP implementation is under active development on the development branch. It targets Home Assistant Core 2026.9+, uses one global config entry and has no runtime Battery Notes dependency. It is not a tagged or deployment-verified release.
+
+## Local development
+
+Use Python 3.14, then install `requirements_test.txt`. Run `ruff check .` and `pytest -q`. The GitHub Actions workflow runs the same checks on Linux, which is required by Home Assistant Core's test runtime.
+
+See [the development plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress log](docs/PROGRESS.md) for scope and stage status.

@@ -56,14 +56,22 @@ Sample: `timestamp`, `level_percent`, `voltage`, `native_low`, source entity IDs
 
 Cycle: `cycle_id`, `device_id`, start/end timestamps, battery type and quantity, optional brand/chemistry, initial/final level, lifetime, replacement reason and confidence/provenance. Provenance values include `user_confirmed`, `battery_notes_explicit`, `recorder_exact`, `statistics_inferred` and `automatic_unconfirmed`. A recharge is a charge cycle, never an assumed replacement.
 
-Estimator features are internal: current cycle age, previous cycle durations, robust short/medium/long drain rates, drain acceleration, sample count/quality, estimated remaining range and confidence. Historical cycles from the same physical device are strongest; same-model local cohort may be a secondary prior. Capacity tables are optional contextual data, not the primary lifetime predictor.
+Estimator features are internal: current cycle age, previous cycle durations, robust median pairwise decline rate, drain acceleration, sample count/quality, estimated remaining range and confidence. An ETA is withheld until at least four good observations span seven days, unless the same physical device has completed replacement cycles for a deliberately low-confidence historical estimate. Historical cycles from the same physical device are strongest; same-model local cohort may be a secondary prior. Capacity tables are optional contextual data, not the primary lifetime predictor. These initial gates are implementation defaults and remain tunable after real-world evaluation.
 
 ## Availability profile and incident
 
-Availability profile: selected sentinels, median/p90/p95 inter-report intervals, jitter/dispersion, explicit availability capability, learned pattern confidence and last update. Event-driven devices may have no reliable periodic pattern; silence alone cannot mark them offline when pattern confidence is low.
+Availability profile: selected sentinels, bounded rolling report timestamps, median/p90/p95 inter-report intervals, jitter/dispersion, explicit availability capability, learned pattern confidence and last update. Event-driven devices may have no reliable periodic pattern; silence alone cannot mark them offline when pattern confidence is low. Device records retain last report time and the latest explicit native availability state when selected.
 
 Incident: `incident_id`, affected device IDs, opened/updated/closed timestamps, health state, cause, confidence, severity, evidence list, shared parent/dependency, acknowledgement/snooze and notification state. Evidence records include feature, observed value, direction/weight, time and provider. Later evidence may revise the cause, retaining the audit trail.
 
 ## Shared dependencies and settings
 
 Dependencies map device → source integration/config entry → known coordinator/gateway/AP when available. Settings cover default timing and score thresholds, notification policy, startup grace, sampling, discovery and provider options. Defaults must be conservative and overridable.
+
+## Versioned persisted payload
+
+The first persisted payload uses Home Assistant Store envelope version `1`, minor version `1`. The root JSON object contains `models`, `devices`, `samples`, `cycles`, `availability_profiles`, `dependencies`, `incidents` and `settings`. Each collection stores normalized records with a stable required ID (`model_id`, `device_id`, `sample_id`, `cycle_id`, `profile_id`, `dependency_id`, or `incident_id`).
+
+`GuardianStorage` uses a private, atomically written Store per config entry. Recorder is not used for ongoing persistence. Known older minor payloads are migrated with defaults; malformed payloads fail validation without an automatic save. Unknown root extension fields are retained. Home Assistant rejects a future major Store version before Strážca writes anything, and Strážca rejects a future minor schema rather than interpreting it as current.
+
+The versioned `async_export()` envelope contains `version`, `minor_version` and validated `data`, without Home Assistant's internal storage key.

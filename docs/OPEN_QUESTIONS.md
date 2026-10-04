@@ -5,9 +5,9 @@ These are intentionally unresolved; the design should not imply they are settled
 ## Identity and support
 
 - Confirm public English name (`Sensor Guardian`) alongside Slovak display name.
-- Confirm permanent HA domain (`sensor_guardian`) before first release.
-- Select minimum supported Home Assistant version after checking helper-device linking and observation APIs.
-- Decide whether first delivery targets HACS custom integration only and what frontend packaging/update method to use.
+- ~~Confirm HA domain.~~ `sensor_guardian` selected for the initial implementation; recheck the custom-integration ecosystem before first release.
+- ~~Select HA minimum.~~ Target Core `2026.9.4`, initial support floor Core `2026.9`; run compatibility validation against this minimum and a current Core build before release.
+- First delivery targets HACS custom integration packaging; the panel is self-hosted in the integration folder with no runtime CDN/build dependency. Live HACS install/update still needs release validation.
 
 ## Data and migration
 
@@ -19,7 +19,7 @@ These are intentionally unresolved; the design should not imply they are settled
 
 ## Availability and diagnosis
 
-- Which entity `last_reported` hooks/APIs are supported at the chosen HA minimum, and what event volume is acceptable?
+- ~~Which report-time API is supported?~~ Use filtered `state_reported` with immediate initialization only for selected entities; verify load and physical-device interpretation with provider adapters.
 - How to choose sentinel entities per integration without missing silent reports or processing noisy entities?
 - Initial stale/offline multipliers, startup grace and recovery stability window?
 - Which dependencies can each provider expose (coordinator, AP, gateway, config entry)?
@@ -36,8 +36,10 @@ These are intentionally unresolved; the design should not imply they are settled
 
 ## Home Assistant and panel
 
-- Final minimal entity set: should `guardian_status` and `guardian_problem` both be created, or should one be optional?
-- Final event/action names and payload stability/versioning?
-- Which signal entity types can safely be enabled programmatically, and should Strážca only recommend or also offer an explicit enable button?
-- Panel framework, localization scope and role/permission behavior?
+- ~~Final minimal entity set.~~ Both `guardian_status` and `guardian_problem` are in the initial automation API; `battery_attention` is battery-only.
+- ~~Event/action names and payload stability.~~ Initial names and payload version 1 are documented in `docs/HOME_ASSISTANT.md`.
+- ~~Signal entity enabling policy.~~ Recommend useful disabled signal entities; do not enable automatically.
+- ~~Panel framework and role behavior.~~ Self-hosted custom panel, authenticated WebSocket API, administrator-only in the MVP. First UI is Slovak; broader localization can follow.
 - Should battery stock management be part of initial release or a later enhancement?
+- ~~Device-list identity, bulk selection/filters and original integration display.~~ Compact tables use HA friendly identity, area, and name-derived ZB/ZBT IDs. Bulk track is explicitly confirmed. Unknown power remains unknown unless the user chooses it; generic HA does not reliably expose physical power source.
+- HA does not expose a supported per-custom-panel numeric sidebar badge. Discovery uses one persistent actionable notification (whose native Notifications badge indicates pending work) with the exact pending count in its message. Revisit only if HA adds a supported panel badge API.
