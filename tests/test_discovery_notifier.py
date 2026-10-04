@@ -16,11 +16,12 @@ async def test_notice_is_one_native_badge_with_exact_pending_count(
         "async_discover_devices",
         AsyncMock(return_value=[{"device_id": str(i)} for i in range(count)]),
     )
-    create = monkeypatch.spy(discovery_notifier, "async_create")
+    create = AsyncMock()
+    monkeypatch.setattr(discovery_notifier, "async_create", create)
 
     assert await discovery_notifier.async_refresh_discovery_notice(hass) == count
     assert runtime["discovery_pending_count"] == count
-    assert create.call_count == 1
+    create.assert_called_once()
     assert f"**{count}**" in create.call_args.args[1]
     assert (
         create.call_args.kwargs["notification_id"] == discovery_notifier.NOTIFICATION_ID
@@ -32,7 +33,8 @@ async def test_notice_is_dismissed_when_pending_queue_is_empty(hass, monkeypatch
     monkeypatch.setattr(
         discovery_notifier, "async_discover_devices", AsyncMock(return_value=[])
     )
-    dismiss = monkeypatch.spy(discovery_notifier, "async_dismiss")
+    dismiss = AsyncMock()
+    monkeypatch.setattr(discovery_notifier, "async_dismiss", dismiss)
 
     assert await discovery_notifier.async_refresh_discovery_notice(hass) == 0
     dismiss.assert_called_once_with(hass, discovery_notifier.NOTIFICATION_ID)

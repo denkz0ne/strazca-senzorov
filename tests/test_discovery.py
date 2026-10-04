@@ -84,8 +84,8 @@ async def test_discovery_uses_friendly_registry_metadata_and_hides_resolved_devi
         name="zbt05-kupelna",
         manufacturer="Example",
         model="Thermometer",
-        area_id=area.id,
     )
+    dr.async_get(hass).async_update_device(device.id, area_id=area.id)
     entity_row = er.async_get(hass).async_get_or_create(
         "sensor",
         "zha",

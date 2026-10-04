@@ -58,23 +58,24 @@ def test_pagination_and_search_are_bounded():
 def test_discovery_filter_choices_cover_records_beyond_current_page():
     page = get_section_page(
         {
-            "discovery": [
-                {
-                    "device_id": "d1",
-                    "source_integration": "zha",
-                    "area_name": "Kitchen",
-                    "availability_state": "on",
-                },
-                {
-                    "device_id": "d2",
-                    "source_integration": "esphome",
-                    "area_name": "Garden",
-                    "availability_state": "unavailable",
-                },
-            ]
+            "devices": [],
         },
         "discovery",
         limit=1,
+        candidates=[
+            {
+                "device_id": "d1",
+                "source_integration": "zha",
+                "area_name": "Kitchen",
+                "availability_state": "on",
+            },
+            {
+                "device_id": "d2",
+                "source_integration": "esphome",
+                "area_name": "Garden",
+                "availability_state": "unavailable",
+            },
+        ],
     )
 
     assert [item["device_id"] for item in page["items"]] == ["d1"]
