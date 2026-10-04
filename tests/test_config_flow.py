@@ -12,11 +12,7 @@ DOMAIN = "sensor_guardian"
 
 async def test_custom_component_is_discovered(hass):
     """The Home Assistant loader finds the packaged custom integration."""
-    print("HA_FLAGS", hass.config.safe_mode, hass.config.recovery_mode)
-    custom_components = __import__("custom_components")
-    print("CUSTOM_PATH", list(custom_components.__path__))
     integrations = await async_get_custom_components(hass)
-    print("INTEGRATION_RESULT", integrations)
     assert DOMAIN in integrations
 
 
