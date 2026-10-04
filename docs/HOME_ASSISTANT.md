@@ -4,17 +4,17 @@ The user wants automation-ready summaries with detailed statistics kept in the S
 
 ## Proposed minimal entities
 
-Per tracked device, subject to HA entity/device-registry feasibility:
+Per tracked device, the initial inventory is three entities at most:
 
-- `binary_sensor.<device>_guardian_problem`: on when actionable health/availability incident exists; useful summary attributes can include `status`, `cause`, `confidence`, `since` and `parent_incident_id`.
-- `sensor.<device>_guardian_status`: compact enum (`healthy`, `degraded`, `stale`, `offline`, `recovering`, `paused`, `unknown`). Consider whether this duplicates the binary summary enough to make one entity optional.
-- For battery-tracked devices only, `binary_sensor.<device>_battery_attention`: on for replace-soon, critical or abnormal-drain state. Detailed estimate stays internal unless later automation needs justify one additional entity.
+- `binary_sensor.<device>_guardian_problem`: on when availability needs attention, with only status, cause, qualitative confidence, start time and parent incident ID attributes.
+- `sensor.<device>_guardian_status`: compact enum (`initializing`, `healthy`, `degraded`, `stale`, `offline`, `recovering`, `paused`, `unknown`). Keep this alongside the problem flag: automations often need both a simple boolean and the current state label.
+- For battery-tracked devices only, `binary_sensor.<device>_battery_attention`: on for low/replace-soon/abnormal drain. Detailed estimate remains internal.
 
 Create no default entities for battery type, quantity, signal, LQI/RSSI, cycle age, confidence statistics, outage counts or trend rates. They remain in the panel. Original source entities remain authoritative.
 
 ## Events for automations
 
-Proposed event types:
+Version 1 event types (payloads carry `version: 1`; incident/recovery events include compact status, cause, qualitative confidence, severity, incident ID and timestamp; grouped outages may include affected device IDs):
 
 - `sensor_guardian_incident`
 - `sensor_guardian_recovered`
@@ -25,7 +25,7 @@ Payloads should be versioned and compact: device ID/name, status, cause, confide
 
 ## Actions/services
 
-Proposed actions using HA device selectors:
+Version 1 actions use HA device selectors where a device is the target:
 
 - `sensor_guardian.mark_battery_replaced` (type/quantity, optional brand/reason/date)
 - `sensor_guardian.confirm_incident_cause` (incident/device, selected cause)

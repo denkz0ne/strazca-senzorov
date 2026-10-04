@@ -157,12 +157,12 @@
 
 **Interfaces:** initially expose per tracked device `guardian_problem`, optional `guardian_status`, and battery-only `battery_attention`; service actions use device/incident selectors. Fire versioned incident/recovery/battery-attention/replacement events from `docs/HOME_ASSISTANT.md`.
 
-- [ ] Test entity unique IDs, availability, state transitions, removal and source-device linking on the supported HA version.
-- [ ] Keep signal, battery type, quantity, cycle stats and confidence detail out of default entity inventory.
-- [ ] Implement mark-replaced, confirm-cause, snooze and resume actions with input validation and idempotence.
-- [ ] Test event names/payload version, transitions only (no duplicate spam), no secret/unrelated state leakage and unload cleanup.
-- [ ] Resolve whether guardian status and guardian problem are both default or one is optional; update docs and translations before API freeze.
-- [ ] Run scoped entity/action/event verification and commit.
+- [x] Test entity unique IDs, availability, state transitions, removal and source-device linking on the supported HA version.
+- [x] Keep signal, battery type, quantity, cycle stats and confidence detail out of default entity inventory.
+- [x] Implement mark-replaced, confirm-cause, snooze and resume actions with input validation and idempotence.
+- [x] Test event names/payload version, transitions only (no duplicate spam), no secret/unrelated state leakage and unload cleanup.
+- [x] Resolve whether guardian status and guardian problem are both default or one is optional; update docs and translations before API freeze.
+- [x] Run scoped entity/action/event verification and commit.
 
 ## Task 8: Side panel and internal API
 

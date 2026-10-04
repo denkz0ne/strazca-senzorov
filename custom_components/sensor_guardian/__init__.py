@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, State
-from homeassistant.helpers.event import async_call_later
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
 from .availability.collector import async_subscribe_reports
 from .availability.profile import learn_report_profile
@@ -31,8 +31,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     runtime = {
         "storage": storage,
         "data": data,
+        "startup_at": datetime.now(UTC),
+        "entities": {},
     }
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
+    from .battery.collector import async_subscribe_battery
+    from .runtime import async_process_devices
+    from .services import async_register_services
+
+    async_register_services(hass)
+
+    def schedule_save() -> None:
+        previous_cancel = runtime.get("cancel_flush")
+        if previous_cancel:
+            previous_cancel()
+
+        def flush(_now) -> None:
+            runtime.pop("cancel_flush", None)
+            hass.async_create_task(storage.async_save(data))
+
+        runtime["cancel_flush"] = async_call_later(hass, 10, flush)
+
+    runtime["schedule_save"] = schedule_save
 
     def record_report(
         device_id: str, entity_id: str, timestamp: datetime, state: State | None
@@ -88,30 +108,44 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 ),
             )
         )
-        previous_cancel = runtime.get("cancel_flush")
-        if previous_cancel:
-            previous_cancel()
-
-        def flush(_now) -> None:
-            runtime.pop("cancel_flush", None)
-            hass.async_create_task(storage.async_save(data))
-
-        runtime["cancel_flush"] = async_call_later(hass, 10, flush)
+        schedule_save()
+        hass.async_create_task(async_process_devices(hass, runtime))
 
     _entity_ids, unsubscribers = async_subscribe_reports(
         hass, data["devices"], record_report
     )
     for unsubscribe in unsubscribers:
         entry.async_on_unload(unsubscribe)
+    _battery_entity_ids, battery_unsubscribers = async_subscribe_battery(hass, runtime)
+    for unsubscribe in battery_unsubscribers:
+        entry.async_on_unload(unsubscribe)
     entry.async_on_unload(
         lambda: runtime.get("cancel_flush") and runtime["cancel_flush"]()
     )
+
+    def periodic_check(_now) -> None:
+        hass.async_create_task(async_process_devices(hass, runtime))
+
+    entry.async_on_unload(
+        async_track_time_interval(hass, periodic_check, timedelta(minutes=1))
+    )
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
+    await hass.config_entries.async_forward_entry_setups(
+        entry, ["binary_sensor", "sensor"]
+    )
+    await async_process_devices(hass, runtime)
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload the entry and release integration-owned data."""
+    if not await hass.config_entries.async_unload_platforms(
+        entry, ["binary_sensor", "sensor"]
+    ):
+        return False
+    from .services import async_unregister_services
+
+    async_unregister_services(hass)
     hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     if not hass.data.get(DOMAIN):
         hass.data.pop(DOMAIN, None)

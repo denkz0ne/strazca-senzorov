@@ -1,1 +1,45 @@
-{"config":{"step":{"user":{"title":"Sensor Guardian","description":"Add the global Sensor Guardian instance."}}}}
+{
+  "entity": {
+    "binary_sensor": {
+      "guardian_problem": {"name": "Device problem"},
+      "battery_attention": {"name": "Battery attention"}
+    },
+    "sensor": {"guardian_status": {"name": "Device status"}}
+  },
+  "services": {
+    "mark_battery_replaced": {
+      "name": "Mark battery replaced",
+      "description": "Record a confirmed battery replacement.",
+      "fields": {
+        "device_id": {"name": "Device"},
+        "battery_type": {"name": "Battery type"},
+        "battery_quantity": {"name": "Battery quantity"},
+        "brand": {"name": "Brand"},
+        "reason": {"name": "Replacement reason"}
+      }
+    },
+    "confirm_incident_cause": {
+      "name": "Confirm incident cause",
+      "description": "Confirm or correct the diagnosed cause.",
+      "fields": {"incident_id": {"name": "Incident"}, "cause": {"name": "Cause"}}
+    },
+    "snooze_device": {
+      "name": "Snooze device alerts",
+      "description": "Pause incident notifications for a tracked device.",
+      "fields": {"device_id": {"name": "Device"}, "snooze_minutes": {"name": "Snooze duration"}}
+    },
+    "resume_device": {
+      "name": "Resume device alerts",
+      "description": "Resume incident notifications for a tracked device.",
+      "fields": {"device_id": {"name": "Device"}}
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sensor Guardian",
+        "description": "Add the global Sensor Guardian instance."
+      }
+    }
+  }
+}

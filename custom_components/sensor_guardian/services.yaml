@@ -1,0 +1,84 @@
+mark_battery_replaced:
+  name: Mark battery replaced
+  description: Record a confirmed battery replacement for one tracked device.
+  fields:
+    device_id:
+      name: Device
+      required: true
+      selector:
+        device:
+          multiple: false
+    battery_type:
+      name: Battery type
+      required: false
+      selector:
+        text:
+    battery_quantity:
+      name: Battery quantity
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 20
+          mode: box
+    brand:
+      name: Brand
+      required: false
+      selector:
+        text:
+    reason:
+      name: Replacement reason
+      required: false
+      selector:
+        text:
+confirm_incident_cause:
+  name: Confirm incident cause
+  description: Confirm or correct the diagnosed cause for an incident.
+  fields:
+    incident_id:
+      name: Incident
+      required: true
+      selector:
+        text:
+    cause:
+      name: Cause
+      required: true
+      selector:
+        select:
+          options:
+            - battery
+            - connectivity
+            - gateway_upstream
+            - integration
+            - power_or_network
+            - unknown
+snooze_device:
+  name: Snooze device alerts
+  description: Pause incident notifications for a tracked device.
+  fields:
+    device_id:
+      name: Device
+      required: true
+      selector:
+        device:
+          multiple: false
+    snooze_minutes:
+      name: Snooze duration
+      required: false
+      default: 60
+      selector:
+        number:
+          min: 1
+          max: 10080
+          unit_of_measurement: min
+          mode: box
+resume_device:
+  name: Resume device alerts
+  description: Resume incident notifications for a tracked device.
+  fields:
+    device_id:
+      name: Device
+      required: true
+      selector:
+        device:
+          multiple: false
