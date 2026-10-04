@@ -16,13 +16,14 @@ from custom_components.sensor_guardian.models import (
 from custom_components.sensor_guardian.storage import GuardianStorage
 
 
-async def _write_file(hass, path: str | Path, content: str) -> None:
+async def _write_file(hass, storage: GuardianStorage, content: str) -> None:
     """Write fixture data without blocking Home Assistant's event loop."""
-    path = Path(path)
+    path = Path(storage.path)
     await hass.async_add_executor_job(
         partial(path.parent.mkdir, parents=True, exist_ok=True)
     )
     await hass.async_add_executor_job(path.write_text, content, "utf-8")
+    storage._manager.async_invalidate(storage.key)
 
 
 async def _read_bytes(hass, path: str | Path) -> bytes:
@@ -62,7 +63,7 @@ async def test_malformed_payload_is_preserved_without_overwrite(hass):
     raw_payload = {"devices": "not-a-list"}
     await _write_file(
         hass,
-        storage.path,
+        storage,
         json.dumps(
             {
                 "version": 1,
@@ -86,7 +87,7 @@ async def test_minor_migration_is_idempotent_and_persisted(hass):
     old_data = {"devices": []}
     await _write_file(
         hass,
-        storage.path,
+        storage,
         json.dumps(
             {
                 "version": 1,
@@ -117,7 +118,7 @@ async def test_future_schema_is_rejected_without_changing_file(hass):
             "data": {"new_field": "preserve me"},
         }
     )
-    await _write_file(hass, storage.path, future_file)
+    await _write_file(hass, storage, future_file)
 
     with pytest.raises(UnsupportedStorageVersionError):
         await storage.async_load()
