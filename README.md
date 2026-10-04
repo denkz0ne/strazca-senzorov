@@ -32,6 +32,8 @@ The integration is intended to help answer:
 - [Progress log](docs/PROGRESS.md) — completed work and verification reports
 - [Open questions](docs/OPEN_QUESTIONS.md) — decisions still to make
 - [Third-party data and attribution](THIRD_PARTY_DATA.md) — Battery Notes snapshot requirements
+- [First-release checklist](docs/RELEASE_CHECKLIST.md) — required live HA/HACS validation and release gates
+- [Changelog](CHANGELOG.md) — release history (no release has been published)
 
 ## Proposed identity
 
@@ -44,6 +46,8 @@ Compatibility target: the connected instance reports Home Assistant Core `2026.9
 ## Status
 
 Development is underway in stages tracked by [GitHub milestone MVP Development](https://github.com/denkz0ne/strazca-senzorov/milestone/1). See the [detailed plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress report](docs/PROGRESS.md). The development branch is not a tagged release, and live HA/HACS installation still needs release validation. Some thresholds and design questions remain proposals.
+
+There is no published release yet. For development, copy `custom_components/sensor_guardian` into Home Assistant's `custom_components` directory and restart Home Assistant. HACS packaging metadata is included for validation, but clean HACS install/update and live panel checks remain release gates. Do not remove Battery Notes until its import has been previewed, backed up, applied and verified in Strážca.
 
 ## Principles
 

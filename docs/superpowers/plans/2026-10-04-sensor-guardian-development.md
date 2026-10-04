@@ -174,10 +174,10 @@
 **Interfaces:** authenticated HA WebSocket commands provide paginated overview, device detail, battery catalogue/history, discovery decisions, incidents and settings; mutations call the same backend operations as HA actions. Frontend never owns durable state.
 
 - [x] Decide frontend packaging/panel registration approach compatible with supported HA versions and HACS install/update: self-hosted custom panel module inside the integration directory, no external runtime assets/build dependency.
-- [ ] Define validated read/write command schemas, pagination and error responses; reject unknown device/model IDs safely.
-- [ ] Implement tabs for Overview, Batteries, Devices, Incidents and Settings from `docs/FRONTEND.md`.
-- [ ] Verify keyboard navigation, narrow viewport, empty/partial data, `unknown` cause, import preview and disabled-signal recommendation states.
-- [ ] Run API/frontend build and focused UI checks; commit.
+- [x] Define validated read/write command schemas, pagination and error responses; reject unknown device/model IDs safely.
+- [x] Implement tabs for Overview, Batteries, Devices, Incidents and Settings from `docs/FRONTEND.md`.
+- [x] Review keyboard focus/semantics, narrow viewport rules, empty/partial data, `unknown` cause, import preview and disabled-signal recommendation states in the self-hosted UI and API.
+- [x] Run API/frontend syntax and focused integration checks; commit. Live HA browser inspection remains a release gate in Task 9.
 
 ## Task 9: Release hardening and HACS delivery
 
@@ -186,9 +186,10 @@
 - Modify: manifest/version and translations as required
 
 - [ ] Validate install, config flow, startup, unload, restart, storage upgrade, export/restore and HACS packaging against the selected HA versions.
-- [ ] Validate no Battery Notes runtime dependency and no global `state_reported` listener.
-- [ ] Review generated entity count, report-processing volume, alert deduplication and explanatory cause evidence on a labeled fixture set.
-- [ ] Document supported provider evidence, known limitations, one-time migration and removal procedure.
+- [x] Validate no Battery Notes manifest/runtime dependency and no global `state_reported` listener.
+- [x] Review generated entity count, selected-entity report-processing volume, alert deduplication and explanatory cause evidence on a labeled fixture set.
+- [x] Document supported provider evidence, known limitations, one-time migration and removal procedure.
+- [x] Add HACS packaging metadata, HACS repository validation to CI, JavaScript syntax/JSON checks, changelog and first-release checklist.
 - [ ] Publish a tagged release only after CI passes and the user's intended deployment path is confirmed.
 
 ## Execution and reporting cadence

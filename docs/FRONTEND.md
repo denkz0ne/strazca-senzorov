@@ -41,6 +41,10 @@ visible as “neznáme”; empty catalogues and candidate/incident lists have ex
 messages. Interaction and layout still need a live Home Assistant browser check
 during release hardening.
 
+The current `hacs.json` declares the display name. It does not certify that an
+install or update has been exercised by HACS; the first-release checklist
+requires a clean install/update and a browser check on a disposable HA instance.
+
 ## Interaction principles
 
 - Explain recommendations and cause estimates in ordinary language.
