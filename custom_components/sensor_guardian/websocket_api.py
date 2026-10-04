@@ -486,7 +486,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
             raise vol.Invalid("Candidate has no battery evidence")
         if power_type == "mains":
             mode = "availability_only"
-        device_registry_value = device_registry.async_get(hass).devices.get(
+        device_registry_value = device_registry.async_get(hass).async_get(
             msg["device_id"]
         )
         source_entities = [

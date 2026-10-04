@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
 from .availability.collector import async_subscribe_reports
@@ -63,6 +63,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     runtime["schedule_save"] = schedule_save
 
+    @callback
     def record_report(
         device_id: str, entity_id: str, timestamp: datetime, state: State | None
     ) -> None:

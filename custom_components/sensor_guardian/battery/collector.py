@@ -8,7 +8,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from homeassistant.core import Event, HomeAssistant
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_state_report_event,
@@ -52,6 +52,7 @@ def async_subscribe_battery(
     if not entity_devices:
         return [], []
 
+    @callback
     def handle(event: Event) -> None:
         entity_id = event.data.get("entity_id")
         matches = entity_devices.get(entity_id, [])
@@ -81,6 +82,7 @@ def async_subscribe_battery(
     return entity_ids, unsubscribers
 
 
+@callback
 def _record_current_device(
     hass: HomeAssistant, runtime: dict[str, Any], device_id: str, timestamp: datetime
 ) -> None:

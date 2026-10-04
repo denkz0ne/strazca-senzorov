@@ -6,7 +6,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from homeassistant.core import Event, HomeAssistant
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_state_report_event,
@@ -48,6 +48,7 @@ def async_subscribe_reports(
     if not entity_devices:
         return [], []
 
+    @callback
     def handle(event: Event) -> None:
         entity_id = event.data.get("entity_id")
         device_ids = entity_devices.get(entity_id)
