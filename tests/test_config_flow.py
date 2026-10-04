@@ -60,6 +60,10 @@ async def test_empty_entry_sets_up_and_unloads_without_entities(hass):
     assert hass.bus.async_listeners().get(EVENT_STATE_REPORTED, 0) == 0
     assert hass.services.has_service(DOMAIN, "mark_battery_replaced")
     assert hass.services.has_service(DOMAIN, "confirm_incident_cause")
+    panel = hass.data["frontend_panels"][DOMAIN].to_response()
+    assert panel["component_name"] == "custom"
+    assert panel["require_admin"] is True
+    assert len(hass.data[DOMAIN][entry.entry_id]["data"]["models"]) == 2330
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED

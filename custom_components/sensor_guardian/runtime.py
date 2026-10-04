@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntryState
@@ -142,6 +142,14 @@ async def async_process_devices(
             native_available=device.get("native_available"),
             previous_state=previous,
             recovery_started_at=device.get("recovery_started_at"),
+            startup_grace=timedelta(
+                minutes=float(data.get("settings", {}).get("startup_grace_minutes", 5))
+            ),
+            recovery_stability=timedelta(
+                minutes=float(
+                    data.get("settings", {}).get("recovery_stability_minutes", 2)
+                )
+            ),
         )
         new_state = health["state"]
         if new_state == "recovering" and not device.get("recovery_started_at"):

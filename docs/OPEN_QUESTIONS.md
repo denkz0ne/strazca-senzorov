@@ -7,7 +7,7 @@ These are intentionally unresolved; the design should not imply they are settled
 - Confirm public English name (`Sensor Guardian`) alongside Slovak display name.
 - ~~Confirm HA domain.~~ `sensor_guardian` selected for the initial implementation; recheck the custom-integration ecosystem before first release.
 - ~~Select HA minimum.~~ Target Core `2026.9.4`, initial support floor Core `2026.9`; run compatibility validation against this minimum and a current Core build before release.
-- Decide whether first delivery targets HACS custom integration only and what frontend packaging/update method to use.
+- First delivery targets HACS custom integration packaging; the panel is self-hosted in the integration folder with no runtime CDN/build dependency. Live HACS install/update still needs release validation.
 
 ## Data and migration
 
@@ -36,8 +36,8 @@ These are intentionally unresolved; the design should not imply they are settled
 
 ## Home Assistant and panel
 
-- Final minimal entity set: should `guardian_status` and `guardian_problem` both be created, or should one be optional?
-- Final event/action names and payload stability/versioning?
-- Which signal entity types can safely be enabled programmatically, and should Strážca only recommend or also offer an explicit enable button?
-- Panel framework, localization scope and role/permission behavior?
+- ~~Final minimal entity set.~~ Both `guardian_status` and `guardian_problem` are in the initial automation API; `battery_attention` is battery-only.
+- ~~Event/action names and payload stability.~~ Initial names and payload version 1 are documented in `docs/HOME_ASSISTANT.md`.
+- ~~Signal entity enabling policy.~~ Recommend useful disabled signal entities; do not enable automatically.
+- ~~Panel framework and role behavior.~~ Self-hosted custom panel, authenticated WebSocket API, administrator-only in the MVP. First UI is Slovak; broader localization can follow.
 - Should battery stock management be part of initial release or a later enhancement?

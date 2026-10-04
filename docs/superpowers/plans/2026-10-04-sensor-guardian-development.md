@@ -173,7 +173,7 @@
 
 **Interfaces:** authenticated HA WebSocket commands provide paginated overview, device detail, battery catalogue/history, discovery decisions, incidents and settings; mutations call the same backend operations as HA actions. Frontend never owns durable state.
 
-- [ ] Decide frontend packaging/panel registration approach compatible with supported HA versions and HACS install/update.
+- [x] Decide frontend packaging/panel registration approach compatible with supported HA versions and HACS install/update: self-hosted custom panel module inside the integration directory, no external runtime assets/build dependency.
 - [ ] Define validated read/write command schemas, pagination and error responses; reject unknown device/model IDs safely.
 - [ ] Implement tabs for Overview, Batteries, Devices, Incidents and Settings from `docs/FRONTEND.md`.
 - [ ] Verify keyboard navigation, narrow viewport, empty/partial data, `unknown` cause, import preview and disabled-signal recommendation states.

@@ -43,7 +43,7 @@ Compatibility target: the connected instance reports Home Assistant Core `2026.9
 
 ## Status
 
-Development is underway in stages tracked by [GitHub milestone MVP Development](https://github.com/denkz0ne/strazca-senzorov/milestone/1). See the [detailed plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress report](docs/PROGRESS.md). Until the scaffold is complete, this repository does not contain an installable integration. Thresholds and unclosed design questions remain proposals.
+Development is underway in stages tracked by [GitHub milestone MVP Development](https://github.com/denkz0ne/strazca-senzorov/milestone/1). See the [detailed plan](docs/superpowers/plans/2026-10-04-sensor-guardian-development.md) and [progress report](docs/PROGRESS.md). The development branch is not a tagged release, and live HA/HACS installation still needs release validation. Some thresholds and design questions remain proposals.
 
 ## Principles
 
@@ -56,7 +56,7 @@ Development is underway in stages tracked by [GitHub milestone MVP Development](
 
 # Development status
 
-The integration scaffold is under active development. It targets Home Assistant Core 2026.9+ and currently creates one global config entry without entities, device changes, listeners or runtime Battery Notes dependency.
+The MVP implementation is under active development on the development branch. It targets Home Assistant Core 2026.9+, uses one global config entry and has no runtime Battery Notes dependency. It is not a tagged or deployment-verified release.
 
 ## Local development
 

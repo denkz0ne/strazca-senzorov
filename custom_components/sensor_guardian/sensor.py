@@ -27,6 +27,7 @@ async def async_setup_entry(
 ) -> None:
     """Create one compact status enum for each tracked device."""
     runtime = hass.data[DOMAIN][entry.entry_id]
+    runtime.setdefault("add_entities", {})["sensor"] = async_add_entities
     entities: list[GuardianStatus] = []
     runtime_entities = runtime.setdefault("entities", {})
     for device in runtime["data"]["devices"]:

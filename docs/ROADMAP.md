@@ -36,7 +36,7 @@ Add grouping, acknowledgement, deduplication, cooldown/snooze, compact events an
 
 ## Stage 8 — panel
 
-Build overview, battery management, discovery, incidents and settings on the stable backend/API. Add detail visualizations and migration/manage flows.
+MVP implementation: self-hosted admin-only Home Assistant custom panel, authenticated paginated WebSocket API, overview, battery catalogue/history and assignments, discovery recommendations, incidents, settings, Battery Notes preview/apply, and local battery-model additions. Release hardening still needs a live HA/HACS browser and upgrade pass.
 
 ## Stage 9 — validation and release
 

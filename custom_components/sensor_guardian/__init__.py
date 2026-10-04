@@ -21,9 +21,13 @@ def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Register integration actions independently of config entry lifecycle."""
+    from .panel import async_register_panel
     from .services import async_register_services
+    from .websocket_api import async_register_commands
 
     async_register_services(hass)
+    async_register_commands(hass)
+    await async_register_panel(hass)
     return True
 
 
@@ -31,11 +35,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Load the entry's validated, versioned domain data."""
     storage = GuardianStorage(hass, entry.entry_id)
     data = await storage.async_load()
+    from .websocket_api import load_bundled_models, merge_bundled_models
+
+    if merge_bundled_models(data, load_bundled_models()):
+        await storage.async_save(data)
     runtime = {
         "storage": storage,
         "data": data,
         "startup_at": datetime.now(UTC),
         "entities": {},
+        "add_entities": {},
     }
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
     from .battery.collector import async_subscribe_battery
@@ -111,14 +120,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         schedule_save()
         hass.async_create_task(async_process_devices(hass, runtime))
 
-    _entity_ids, unsubscribers = async_subscribe_reports(
-        hass, data["devices"], record_report
-    )
-    for unsubscribe in unsubscribers:
-        entry.async_on_unload(unsubscribe)
-    _battery_entity_ids, battery_unsubscribers = async_subscribe_battery(hass, runtime)
-    for unsubscribe in battery_unsubscribers:
-        entry.async_on_unload(unsubscribe)
+    def refresh_report_subscriptions() -> None:
+        for unsubscribe in runtime.pop("report_unsubscribers", []):
+            unsubscribe()
+        _ids, runtime["report_unsubscribers"] = async_subscribe_reports(
+            hass, data["devices"], record_report
+        )
+
+    def refresh_battery_subscriptions() -> None:
+        for unsubscribe in runtime.pop("battery_unsubscribers", []):
+            unsubscribe()
+        _ids, runtime["battery_unsubscribers"] = async_subscribe_battery(hass, runtime)
+
+    def unsubscribe_device_listeners() -> None:
+        for key in ("report_unsubscribers", "battery_unsubscribers"):
+            for unsubscribe in runtime.pop(key, []):
+                unsubscribe()
+
+    runtime["refresh_report_subscriptions"] = refresh_report_subscriptions
+    runtime["refresh_battery_subscriptions"] = refresh_battery_subscriptions
+    refresh_report_subscriptions()
+    refresh_battery_subscriptions()
+    entry.async_on_unload(unsubscribe_device_listeners)
     entry.async_on_unload(
         lambda: runtime.get("cancel_flush") and runtime["cancel_flush"]()
     )

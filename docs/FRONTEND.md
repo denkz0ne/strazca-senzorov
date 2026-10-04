@@ -12,6 +12,35 @@ The side panel is for detailed management and diagnosis; automations use the sma
 
 Tabs may be combined or reordered after usability work; these five areas capture current needs. Panel remains useful with generic provider data and must label unsupported diagnostics clearly.
 
+## MVP packaging and API
+
+The MVP panel is a self-hosted, dependency-free JavaScript custom element in
+`custom_components/sensor_guardian/www/panel.js`. `panel.py` registers it as a
+Home Assistant custom panel and serves the packaged file from the integration;
+no external script CDN or separate Node build step is required. HACS installs and
+updates the integration directory as one unit.
+
+The panel is administrator-only. It uses authenticated Home Assistant WebSocket
+commands and never keeps durable state in the browser. `websocket_api.py`
+provides bounded pages for overview, model catalogue/history, discovery,
+incidents and settings. API serializers use per-section field allow-lists;
+overview omits battery type, entity references and signal details. Settings and
+all write commands validate IDs, page sizes and values.
+
+Write operations cover tracking/dismissing discovery candidates, adding a local
+battery-model record, assigning battery type/quantity per device, updating the
+initial supported settings, and previewing/applying the one-time Battery Notes
+import. Import apply stores a separate pre-import backup first. Replacement,
+cause confirmation, snooze and resume use the same Home Assistant actions exposed
+to automations. Discovery only recommends disabled signal entities; it does not
+enable them.
+
+The first UI release is Slovak, uses native keyboard focus order and semantic
+tab/button/input labels, and adapts to narrow viewports. Unknown cause remains
+visible as “neznáme”; empty catalogues and candidate/incident lists have explicit
+messages. Interaction and layout still need a live Home Assistant browser check
+during release hardening.
+
 ## Interaction principles
 
 - Explain recommendations and cause estimates in ordinary language.

@@ -163,11 +163,19 @@ def _record_current_device(
     current_level = sample.get("level_percent")
     current_low = sample.get("native_low") is True
     window = estimate.get("remaining_days_range")
-    replace_soon = bool(window and window.get("max", 10_000) <= 14)
+    settings = data.get("settings", {})
+    replace_soon = bool(
+        window
+        and window.get("max", 10_000)
+        <= float(settings.get("replacement_warning_days", 14))
+    )
     device["battery_estimate"] = estimate
     device["battery_attention"] = (
         current_low
-        or bool(current_level is not None and current_level <= 20)
+        or bool(
+            current_level is not None
+            and current_level <= float(settings.get("low_battery_threshold", 20))
+        )
         or replace_soon
         or bool(estimate.get("abnormal_drain"))
     )

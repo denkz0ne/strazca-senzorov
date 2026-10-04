@@ -18,6 +18,7 @@ async def async_setup_entry(
 ) -> None:
     """Create two summary flags per tracked device, plus battery attention if used."""
     runtime = hass.data[DOMAIN][entry.entry_id]
+    runtime.setdefault("add_entities", {})["binary_sensor"] = async_add_entities
     entities: list[BinarySensorEntity] = []
     runtime_entities = runtime.setdefault("entities", {})
     for device in runtime["data"]["devices"]:
