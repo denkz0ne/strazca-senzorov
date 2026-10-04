@@ -1,10 +1,12 @@
 import json
+import threading
 from pathlib import Path
 
 import pytest
 
 from custom_components.sensor_guardian.migration.battery_notes import (
     apply_import_preview,
+    async_read_bundled_catalogue,
     build_import_preview,
     convert_battery_notes_library,
     restore_backup,
@@ -12,6 +14,24 @@ from custom_components.sensor_guardian.migration.battery_notes import (
 from custom_components.sensor_guardian.models import StorageDataError, empty_store_data
 
 DATA = Path(__file__).parents[2] / "custom_components" / "sensor_guardian" / "data"
+
+
+async def test_bundled_catalogue_read_uses_executor(hass, tmp_path, monkeypatch):
+    path = tmp_path / "catalogue.json"
+    path.write_text('{"models": []}', encoding="utf-8")
+    loop_thread = threading.get_ident()
+    read_threads = []
+    original_read_text = Path.read_text
+
+    def read_text(self, *args, **kwargs):
+        read_threads.append(threading.get_ident())
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", read_text)
+
+    assert await async_read_bundled_catalogue(hass, path) == {"models": []}
+    assert read_threads
+    assert read_threads[0] != loop_thread
 
 
 def test_converts_snapshot_with_stable_ids_and_hints():

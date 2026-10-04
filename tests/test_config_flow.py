@@ -2,6 +2,7 @@
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import EVENT_STATE_REPORTED
+from homeassistant.core import is_callback
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_custom_components
@@ -67,3 +68,31 @@ async def test_empty_entry_sets_up_and_unloads_without_entities(hass):
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     assert entry.state is ConfigEntryState.NOT_LOADED
+
+
+async def test_timer_callbacks_are_event_loop_safe(hass, monkeypatch):
+    import custom_components.sensor_guardian as integration
+
+    callbacks = {}
+
+    def capture_call_later(_hass, _delay, action):
+        callbacks["flush"] = action
+        return lambda: None
+
+    def capture_interval(_hass, action, _interval):
+        callbacks["periodic"] = action
+        return lambda: None
+
+    monkeypatch.setattr(integration, "async_call_later", capture_call_later)
+    monkeypatch.setattr(integration, "async_track_time_interval", capture_interval)
+
+    entry = MockConfigEntry(domain=DOMAIN, data={}, unique_id="timer-test")
+    entry.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(entry.entry_id)
+
+    runtime = hass.data[DOMAIN][entry.entry_id]
+    runtime["schedule_save"]()
+
+    assert is_callback(callbacks["flush"])
+    assert is_callback(callbacks["periodic"])
+    await hass.config_entries.async_unload(entry.entry_id)

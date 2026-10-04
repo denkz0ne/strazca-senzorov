@@ -485,6 +485,11 @@ def load_bundled_models() -> list[dict[str, Any]]:
     return models
 
 
+async def async_load_bundled_models(hass: HomeAssistant) -> list[dict[str, Any]]:
+    """Read the bundled catalogue in Home Assistant's I/O executor."""
+    return await hass.async_add_executor_job(load_bundled_models)
+
+
 def async_register_commands(hass: HomeAssistant) -> None:
     """Register authenticated read/write commands once during component setup."""
 

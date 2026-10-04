@@ -14,6 +14,7 @@ from .const import DOMAIN
 from .storage import GuardianStorage
 
 
+@callback
 def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload the integration when its options change."""
     hass.async_create_task(hass.config_entries.async_reload(entry.entry_id))
@@ -37,9 +38,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Load the entry's validated, versioned domain data."""
     storage = GuardianStorage(hass, entry.entry_id)
     data = await storage.async_load()
-    from .websocket_api import load_bundled_models, merge_bundled_models
+    from .websocket_api import async_load_bundled_models, merge_bundled_models
 
-    if merge_bundled_models(data, load_bundled_models()):
+    if merge_bundled_models(data, await async_load_bundled_models(hass)):
         await storage.async_save(data)
     runtime = {
         "storage": storage,
@@ -57,6 +58,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if previous_cancel:
             previous_cancel()
 
+        @callback
         def flush(_now) -> None:
             runtime.pop("cancel_flush", None)
             hass.async_create_task(storage.async_save(data))
@@ -149,6 +151,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         lambda: runtime.get("cancel_flush") and runtime["cancel_flush"]()
     )
 
+    @callback
     def periodic_check(_now) -> None:
         hass.async_create_task(async_process_devices(hass, runtime))
 

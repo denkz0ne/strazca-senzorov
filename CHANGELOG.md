@@ -9,6 +9,7 @@ Changes are recorded here for tagged releases. There is no published release yet
 - Document first-run discovery behavior and the current opaque discovery-card ID limitation.
 - Add compact battery, overview and discovery tables with friendly HA identity, ZB/ZBT labels, area, filters and confirmed bulk tracking.
 - Add a deduplicated persistent discovery notice, sticky panel navigation/search and narrow-screen table scrolling.
+- Run bundled catalogue reads in Home Assistant's executor and mark timer callbacks event-loop safe; add regression coverage for HA 2026.9 thread checks.
 - Add device availability and battery lifecycle monitoring.
 - Add evidence-based outage diagnosis and incident grouping.
 - Add minimal automation entities, actions and transition events.

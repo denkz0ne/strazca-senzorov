@@ -176,6 +176,25 @@ def test_bundled_catalogue_is_loaded_from_the_local_converted_snapshot():
     assert all(model.get("source") == "imported" for model in models)
 
 
+async def test_bundled_catalogue_is_read_in_the_executor(hass, monkeypatch):
+    import threading
+
+    from custom_components.sensor_guardian import websocket_api
+
+    loop_thread = threading.get_ident()
+    read_threads = []
+
+    def read_catalogue():
+        read_threads.append(threading.get_ident())
+        return []
+
+    monkeypatch.setattr(websocket_api, "load_bundled_models", read_catalogue)
+
+    assert await websocket_api.async_load_bundled_models(hass) == []
+    assert read_threads
+    assert read_threads[0] != loop_thread
+
+
 def test_local_model_addition_is_unique_and_keeps_user_battery_choice():
     data = {"models": []}
     model = add_local_model(

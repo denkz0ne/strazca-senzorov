@@ -32,6 +32,17 @@ def _stable_id(prefix: str, value: object) -> str:
     return f"{prefix}_{hashlib.sha256(encoded).hexdigest()[:20]}"
 
 
+async def async_read_bundled_catalogue(
+    hass: HomeAssistant, path: Path
+) -> dict[str, Any]:
+    """Read and decode a local JSON catalogue outside Home Assistant's event loop."""
+    contents = await hass.async_add_executor_job(path.read_text, encoding="utf-8")
+    decoded = json.loads(contents)
+    if not isinstance(decoded, dict):
+        raise ValueError("Bundled battery catalogue must contain a JSON object")
+    return decoded
+
+
 def convert_battery_notes_library(
     source: dict[str, Any], source_commit: str
 ) -> dict[str, Any]:
@@ -470,7 +481,7 @@ async def async_build_import_preview(
     )
     catalogue_path = Path(__file__).parents[1] / "data" / "battery_models.json"
     try:
-        catalogue = json.loads(catalogue_path.read_text(encoding="utf-8"))
+        catalogue = await async_read_bundled_catalogue(hass, catalogue_path)
         catalogue_count = len(catalogue.get("models", []))
     except OSError, ValueError, TypeError:
         catalogue_count = 0
