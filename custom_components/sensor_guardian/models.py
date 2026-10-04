@@ -38,6 +38,7 @@ class DeviceRecord(TypedDict):
     area_id: NotRequired[str | None]
     source_integration: NotRequired[str | None]
     config_entry_id: NotRequired[str | None]
+    provider_ref: NotRequired[str | None]
     last_reported_at: NotRequired[str | None]
     native_available: NotRequired[bool | None]
     native_availability_state: NotRequired[str | None]
@@ -108,6 +109,7 @@ class DependencyRecord(TypedDict):
     """Shared integration, coordinator, gateway or network dependency."""
 
     dependency_id: str
+    kind: NotRequired[str]
     device_ids: NotRequired[list[str]]
     source_integration: NotRequired[str | None]
     config_entry_id: NotRequired[str | None]
@@ -124,7 +126,8 @@ class IncidentRecord(TypedDict):
     updated_at: str
     health_state: NotRequired[str]
     cause: NotRequired[str]
-    confidence: NotRequired[float | None]
+    confidence: NotRequired[str | float | None]
+    closed_at: NotRequired[str | None]
     severity: NotRequired[str]
     evidence: NotRequired[list[dict[str, object]]]
     parent_incident_id: NotRequired[str | None]
@@ -132,6 +135,8 @@ class IncidentRecord(TypedDict):
     acknowledged: NotRequired[bool]
     snoozed_until: NotRequired[str | None]
     notification_state: NotRequired[str]
+    cause_history: NotRequired[list[dict[str, object]]]
+    confirmed_cause: NotRequired[str | None]
 
 
 class GuardianData(TypedDict):

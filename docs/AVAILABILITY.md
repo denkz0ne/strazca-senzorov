@@ -23,9 +23,9 @@ The collector observes only the selected sentinel IDs and any explicitly selecte
 
 ## Scoring and explanation
 
-Use an explainable evidence table, with positive and negative evidence for each hypothesis. Avoid a black-box label. Candidate examples: battery at 3% plus a sustained steep decline increases battery likelihood; 12 sibling devices failing together while the coordinator is unavailable strongly favors gateway/upstream. Scores/confidence should be calibrated and tested against labeled incidents before being exposed as probabilities.
+Use an explainable evidence table, with positive and negative evidence for each hypothesis. The initial rule-based engine uses named evidence points: critically low percent, native battery-low, abnormal drain, signal decline, weak RSSI/LQI, explicit coordinator/gateway/source-entry loss, shared outage count and recovery without battery intervention. Every applied rule appears with its signed point contribution. Candidate examples: battery at 3% plus a native low flag strongly increases battery points; several siblings failing together while their coordinator is unavailable strongly favors gateway/upstream. The score is an internal evidence-point total, never a percentage/probability.
 
-Initial proposed classification gate (to validate, not a committed constant): top score at least 60 and at least 15 points above the runner-up. Otherwise `unknown`. Keep confidence semantics explicit; raw scores are not probabilities unless calibrated.
+Initial classification gate: top score at least 60 and at least 15 points above the runner-up. Otherwise `unknown`. The rules produce only low/medium/high confidence labels from point bands; those labels are qualitative and are not calibrated probabilities.
 
 ## Correlation and revision
 

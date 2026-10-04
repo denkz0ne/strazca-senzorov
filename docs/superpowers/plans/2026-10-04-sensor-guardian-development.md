@@ -142,11 +142,11 @@
 
 **Interfaces:** scoring consumes normalized timestamped evidence and returns ordered cause scores plus explanations; classification returns `unknown` unless the validated threshold and margin are met. Incident manager supports open/update/close, parent/affected devices, acknowledgement, snooze and cause revision audit.
 
-- [ ] Add labeled fixtures for low-battery dropout, one-device RF dropout, coordinator/source outage, simultaneous shared outage, recovery without intervention and conflicting evidence.
-- [ ] Implement documented score reasons and ensure raw scores are not exposed as probabilities unless calibrated.
-- [ ] Correlate incidents through overlap and known shared dependencies; avoid grouping unrelated single-device incidents.
-- [ ] Add cause revision history and explicit confirmed/inferred classification provenance.
-- [ ] Run scoring/correlation tests and review false-positive scenarios; commit.
+- [x] Add labeled fixtures for low-battery dropout, one-device RF dropout, coordinator/source outage, simultaneous shared outage, recovery without intervention and conflicting evidence.
+- [x] Implement documented score reasons and ensure raw scores are not exposed as probabilities unless calibrated.
+- [x] Correlate incidents through overlap and known shared dependencies; avoid grouping unrelated single-device incidents.
+- [x] Add cause revision history and explicit confirmed/inferred classification provenance.
+- [x] Run scoring/correlation tests and review false-positive scenarios; commit.
 
 ## Task 7: Minimal HA entities, actions and event contracts
 

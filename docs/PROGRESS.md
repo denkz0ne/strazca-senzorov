@@ -73,3 +73,10 @@ This log records completed work and verification for the staged development plan
 - Added tests for stable/jittery/irregular/event-only patterns, startup grace, per-device timeout transitions, native-availability precedence, recovery, allow-list scoping and unsubscribe. Initial CI run `37224839604` identified an overly loose irregularity cutoff and a stale test sample that actually crossed the offline threshold; tightened the relative jitter cutoff and moved the sample inside the stale window. Follow-up run `37225056438` passed Ruff and the full pytest suite. Native Windows pytest remains blocked by HA's POSIX `fcntl` dependency.
 - Explicitly seeded current states after the Core 2026.9.4 filtered state/report listeners register; this is how immediate initialization is achieved with the available helper API.
 - Next: Task 6, evidence scoring, shared-dependency grouping and cause revision history.
+
+## 2026-10-04 — Task 6 implementation: evidence and incident clustering
+
+- Added allow-listed timestamped evidence normalization and deterministic rule points for battery, connectivity, gateway/upstream, source integration and shared host/network causes. The response explicitly labels scores as evidence points, never probabilities; labels require at least 60 points and a 15-point margin or return `unknown`.
+- Added explicit provider/config-entry dependency indexing and five-minute onset correlation. Integration name alone is not used as a physical dependency; shared clusters require at least three affected devices.
+- Added incident open/update/close, deduplication by active affected-device set, parent/dependency links, acknowledgement/snooze fields and cause-revision history with inferred/user-confirmed provenance.
+- Added labeled battery, individual RF, shared gateway, source integration, conflicting evidence, separate dependency, non-overlap and incident revision tests. Ruff and diff checks pass locally; GitHub Actions is pending. Native Windows pytest remains blocked by HA's POSIX `fcntl` dependency.
