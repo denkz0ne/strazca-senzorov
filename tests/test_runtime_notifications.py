@@ -114,3 +114,67 @@ async def test_notifications_can_be_disabled_without_disabling_events(
     await hass.async_block_till_done()
     assert len(events) == 1
     create.assert_not_called()
+
+
+async def test_disabling_availability_closes_alert_without_a_recovery_event(
+    hass, monkeypatch
+):
+    create, dismiss = MagicMock(), MagicMock()
+    monkeypatch.setattr(runtime_module, "async_create", create)
+    monkeypatch.setattr(runtime_module, "async_dismiss", dismiss)
+    now = datetime.now(UTC)
+    data = empty_store_data()
+    data["devices"].append(
+        {
+            "device_id": "battery",
+            "tracking_mode": "battery_and_availability",
+            "power_type": "replaceable_battery",
+            "sentinels": ["sensor.battery"],
+            "entity_refs": {"battery_level": "sensor.battery"},
+        }
+    )
+    runtime = {
+        "data": data,
+        "startup_at": now - timedelta(days=1),
+        "storage": type("Storage", (), {"async_save": AsyncMock()})(),
+    }
+    recovered = []
+    hass.bus.async_listen(
+        "sensor_guardian_recovered", lambda event: recovered.append(event.data)
+    )
+    hass.states.async_set("sensor.battery", "unavailable")
+    await runtime_module.async_process_devices(hass, runtime, now=now)
+    data["devices"][0]["tracking_mode"] = "battery_only"
+    await runtime_module.async_process_devices(
+        hass, runtime, now=now + timedelta(seconds=1)
+    )
+    await hass.async_block_till_done()
+    assert data["incidents"][0]["closed_at"]
+    assert data["devices"][0]["active_incident_ids"] == []
+    dismiss.assert_called_once()
+    assert not recovered
+
+
+async def test_primary_switch_unavailable_is_not_masked_by_cached_telemetry(hass):
+    now = datetime.now(UTC)
+    data = empty_store_data()
+    data["devices"].append(
+        {
+            "device_id": "socket",
+            "tracking_mode": "availability_only",
+            "power_type": "mains",
+            "sentinels": ["switch.socket", "sensor.energy", "sensor.power"],
+            "availability_sentinels": ["switch.socket"],
+            "entity_refs": {},
+        }
+    )
+    runtime = {
+        "data": data,
+        "startup_at": now - timedelta(days=1),
+        "storage": type("Storage", (), {"async_save": AsyncMock()})(),
+    }
+    hass.states.async_set("switch.socket", "unavailable")
+    hass.states.async_set("sensor.energy", "100")
+    hass.states.async_set("sensor.power", "20")
+    await runtime_module.async_process_devices(hass, runtime, now=now)
+    assert data["devices"][0]["health_state"] == "offline"

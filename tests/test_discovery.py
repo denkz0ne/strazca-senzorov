@@ -97,6 +97,18 @@ def test_mains_voltage_and_switch_are_availability_not_battery_evidence():
     assert candidate.entity_refs["voltage"] is None
 
 
+def test_mains_primary_actuator_is_selected_ahead_of_energy_telemetry():
+    rows = [
+        entity("sensor.energy", unit="kWh"),
+        entity("sensor.power", unit="W"),
+        entity("sensor.voltage", unit="V"),
+        entity("switch.socket", domain="switch"),
+    ]
+    candidate = rank_device_entities("socket", rows)
+    assert "switch.socket" in candidate.sentinels
+    assert candidate.availability_sentinels == ("switch.socket",)
+
+
 async def test_discovery_uses_friendly_registry_metadata_and_hides_resolved_devices(
     hass,
 ):
