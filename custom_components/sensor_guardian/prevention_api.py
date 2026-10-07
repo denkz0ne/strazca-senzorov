@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
@@ -12,7 +13,7 @@ from homeassistant.helpers import area_registry, device_registry
 
 from . import analytics
 from .const import DOMAIN, VERSION
-from .discovery import async_discover_devices, display_identifier
+from .discovery import _kind, async_discover_devices, display_identifier
 from .history import number, stable_id
 from .onboarding import apply_tracking, preview_tracking
 
@@ -132,6 +133,23 @@ def page(rows, msg):
         "has_more": offset + limit < len(rows),
         "offset": offset,
     }
+
+
+def source_kind(hass, row):
+    state = hass.states.get(row.entity_id)
+    attributes = state.attributes if state else {}
+    return _kind(
+        SimpleNamespace(
+            entity_id=row.entity_id,
+            domain=row.domain,
+            original_name=row.original_name,
+            unique_id=row.unique_id,
+            device_class=getattr(row, "original_device_class", None)
+            or attributes.get("device_class"),
+            unit_of_measurement=attributes.get("unit_of_measurement")
+            or getattr(row, "unit_of_measurement", None),
+        )
+    )
 
 
 def register_prevention_commands(hass):
@@ -300,6 +318,7 @@ def register_prevention_commands(hass):
                 "name": row.name or row.original_name or row.entity_id,
                 "domain": row.domain,
                 "disabled": bool(row.disabled_by),
+                "kind": source_kind(hass, row),
             }
             for row in entity_registry.async_get(hass).entities.values()
             if row.device_id == msg["device_id"]
@@ -581,6 +600,130 @@ def register_prevention_commands(hass):
         runtime["history_task"] = hass.async_create_task(runtime["load_history"]())
         connection.send_result(msg["id"], {"status": "running"})
 
+    @command(
+        "update_sources",
+        {
+            vol.Required("device_id"): str,
+            vol.Optional("automatic", default=False): bool,
+            vol.Optional("entity_refs", default={}): {
+                vol.Optional(key): vol.Any(None, str)
+                for key in (
+                    "battery_level",
+                    "battery_low",
+                    "voltage",
+                    "native_availability",
+                )
+            },
+            vol.Optional("availability_entity"): vol.Any(None, str),
+        },
+    )
+    @websocket_api.async_response
+    async def update_sources(hass, connection, msg):
+        _require_admin(connection)
+        runtime = _get_runtime(hass)
+        device = next(
+            (
+                row
+                for row in runtime["data"]["devices"]
+                if row["device_id"] == msg["device_id"]
+            ),
+            None,
+        )
+        if device is None:
+            raise vol.Invalid("Zariadenie sa nesleduje")
+        if msg["automatic"]:
+            device.setdefault("user_overrides", {}).pop("entity_refs", None)
+            await runtime["reconcile_sources"]()
+        else:
+            from homeassistant.helpers import entity_registry
+
+            registry = entity_registry.async_get(hass)
+            refs = {
+                key: msg["entity_refs"].get(key)
+                for key in (
+                    "battery_level",
+                    "battery_low",
+                    "voltage",
+                    "native_availability",
+                )
+            }
+            primary = msg.get("availability_entity")
+            for kind, entity_id in [
+                (kind, entity_id) for kind, entity_id in refs.items() if entity_id
+            ] + ([("primary", primary)] if primary else []):
+                row = registry.async_get(entity_id)
+                if (
+                    row is None
+                    or row.device_id != device["device_id"]
+                    or row.disabled_by
+                    or row.platform in {"battery_notes", DOMAIN}
+                    or (kind != "primary" and source_kind(hass, row) != kind)
+                ):
+                    connection.send_error(
+                        msg["id"],
+                        "invalid_source",
+                        "Vyber zapnutú pôvodnú entitu tohto zariadenia správneho typu.",
+                    )
+                    return
+            if not primary and not refs.get("native_availability"):
+                connection.send_error(
+                    msg["id"],
+                    "invalid_source",
+                    "Vyber primárnu entitu dostupnosti alebo natívne pripojenie.",
+                )
+                return
+            if device.get("tracking_mode") in {
+                "battery_only",
+                "battery_and_availability",
+            } and not any(
+                refs.get(key) for key in ("battery_level", "battery_low", "voltage")
+            ):
+                connection.send_error(
+                    msg["id"],
+                    "invalid_source",
+                    "Batériový režim potrebuje batériový zdroj.",
+                )
+                return
+            device["entity_refs"] = refs
+            device["availability_sentinels"] = [primary or refs["native_availability"]]
+            device["sentinels"] = list(
+                dict.fromkeys(
+                    device["availability_sentinels"]
+                    + [value for value in refs.values() if value]
+                )
+            )
+            device["report_profile_entity_id"] = (
+                primary or refs.get("battery_level") or refs["native_availability"]
+            )
+            device.setdefault("user_overrides", {})["entity_refs"] = True
+            runtime["data"]["availability_profiles"][:] = [
+                profile
+                for profile in runtime["data"]["availability_profiles"]
+                if profile["device_id"] != device["device_id"]
+            ]
+        runtime["refresh_report_subscriptions"]()
+        runtime["refresh_battery_subscriptions"]()
+        await runtime["storage"].async_save(runtime["data"])
+        connection.send_result(msg["id"], {"saved": True})
+
+    @command("reset_report_profile", {vol.Required("device_id"): str})
+    @websocket_api.async_response
+    async def reset_profile(hass, connection, msg):
+        _require_admin(connection)
+        runtime = _get_runtime(hass)
+        if not any(
+            row["device_id"] == msg["device_id"] for row in runtime["data"]["devices"]
+        ):
+            raise vol.Invalid("Zariadenie sa nesleduje")
+        runtime["data"]["availability_profiles"][:] = [
+            profile
+            for profile in runtime["data"]["availability_profiles"]
+            if profile["device_id"] != msg["device_id"]
+        ]
+        runtime["refresh_report_subscriptions"]()
+        await runtime["storage"].async_save(runtime["data"])
+        connection.send_result(msg["id"], {"saved": True})
+
     @command("get_diagnostics", {})
     @websocket_api.async_response
     async def diagnostics(hass, connection, msg):
@@ -609,5 +752,8 @@ def register_prevention_commands(hass):
         save_stock,
         load_history,
         diagnostics,
+        update_sources,
+        reset_profile,
     ):
         websocket_api.async_register_command(hass, handler)
+
