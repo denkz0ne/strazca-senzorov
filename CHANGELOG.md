@@ -16,6 +16,8 @@ Changes are recorded here for tagged releases. There is no published release yet
 - Warn on rapid recent drain before enough history exists for an ETA; separate current-cycle trend from previous battery cycles.
 - Add Chromium interaction checks and runtime/API regression coverage. Owner HAOS update and live checks remain required.
 
+### 0.1.0 — MVP baseline
+
 - Refresh project status, HAOS/HACS update instructions and the log hotfix report after PR #15 merged to `main`.
 - Add a complete Slovak user guide, developer guide and documentation/versioning policy.
 - Add a pull request checklist to keep documentation, changelog, manifest version and hotfix evidence in step with code.

@@ -60,4 +60,3 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   await browser.close();
   console.log("PASS: native percentage display, per-device bulk defaults, tracked-mode edit, explicit signal enable, narrow layout.");
 })().catch(error => { console.error(error); process.exit(1); });
-

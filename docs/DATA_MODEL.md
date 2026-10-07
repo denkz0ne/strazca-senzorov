@@ -76,4 +76,4 @@ The first persisted payload uses Home Assistant Store envelope version `1`, mino
 
 The versioned `async_export()` envelope contains `version`, `minor_version` and validated `data`, without Home Assistant's internal storage key.
 
-Runtime repair 0.1.1 adds optional device fields source_binding_version (2), source_status and report_profile_entity_id. Existing schema 1.1 containers stay compatible; battery samples/cycles and unknown extension fields survive repair. user_overrides protects explicit source/mode/power choices. A separate pre_source_repair Store captures the first legacy payload before changing bindings.
+Runtime repair 0.1.1 adds optional device fields source_binding_version (2), source_status, report_profile_entity_id and availability_sentinels. The last field identifies authoritative primary availability sources independently from cached auxiliary telemetry. Existing schema 1.1 containers stay compatible; battery samples/cycles and unknown extension fields survive repair. user_overrides protects explicit source/mode/power choices. A separate pre_source_repair Store captures the first legacy payload before changing bindings.
