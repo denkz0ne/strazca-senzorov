@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
@@ -42,6 +43,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if merge_bundled_models(data, await async_load_bundled_models(hass)):
         await storage.async_save(data)
+    from .sources import async_reconcile_sources
+
+    if await async_reconcile_sources(hass, data):
+        await storage.async_save(data)
     runtime = {
         "storage": storage,
         "data": data,
@@ -51,12 +56,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
     from .battery.collector import async_subscribe_battery
-    from .runtime import async_process_devices
+    from .runtime import async_process_devices, schedule_device_processing
 
     def schedule_save() -> None:
         previous_cancel = runtime.get("cancel_flush")
         if previous_cancel:
-            previous_cancel()
+            return
 
         @callback
         def flush(_now) -> None:
@@ -79,7 +84,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         if device is None:
             return
-        device["last_reported_at"] = stamp
+        if state is None or state.state in {"unknown", "unavailable"}:
+            schedule_save()
+            schedule_device_processing(hass, runtime)
+            return
+        if stamp > (device.get("last_reported_at") or ""):
+            device["last_reported_at"] = stamp
         refs = device.get("entity_refs", {})
         if (
             isinstance(refs, dict)
@@ -94,6 +104,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if state.state in {"off", "unavailable"}
                 else None
             )
+        # Learn one sentinel per device; concurrent sensor writes are not
+        # independent reports and otherwise teach microsecond intervals.
+        if entity_id != device.get("report_profile_entity_id", entity_id):
+            schedule_save()
+            schedule_device_processing(hass, runtime)
+            return
         profile = next(
             (
                 item
@@ -123,7 +139,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
         )
         schedule_save()
-        hass.async_create_task(async_process_devices(hass, runtime))
+        schedule_device_processing(hass, runtime)
 
     def refresh_report_subscriptions() -> None:
         for unsubscribe in runtime.pop("report_unsubscribers", []):
@@ -141,11 +157,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         for key in ("report_unsubscribers", "battery_unsubscribers"):
             for unsubscribe in runtime.pop(key, []):
                 unsubscribe()
+        task = runtime.get("_process_task")
+        if task and not task.done():
+            task.cancel()
 
     runtime["refresh_report_subscriptions"] = refresh_report_subscriptions
     runtime["refresh_battery_subscriptions"] = refresh_battery_subscriptions
     refresh_report_subscriptions()
     refresh_battery_subscriptions()
+
+    async def reconcile_and_refresh(_event=None) -> None:
+        if await async_reconcile_sources(hass, data):
+            refresh_report_subscriptions()
+            refresh_battery_subscriptions()
+            schedule_save()
+        await async_process_devices(hass, runtime)
+
+    runtime["reconcile_sources"] = reconcile_and_refresh
+    if not hass.is_running:
+        entry.async_on_unload(
+            hass.bus.async_listen_once(
+                EVENT_HOMEASSISTANT_STARTED, reconcile_and_refresh
+            )
+        )
     entry.async_on_unload(unsubscribe_device_listeners)
     entry.async_on_unload(
         lambda: runtime.get("cancel_flush") and runtime["cancel_flush"]()
@@ -153,7 +187,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     @callback
     def periodic_check(_now) -> None:
-        hass.async_create_task(async_process_devices(hass, runtime))
+        schedule_device_processing(hass, runtime)
 
     entry.async_on_unload(
         async_track_time_interval(hass, periodic_check, timedelta(minutes=1))
@@ -175,6 +209,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         entry, ["binary_sensor", "sensor"]
     ):
         return False
+    runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if runtime:
+        await runtime["storage"].async_save(runtime["data"])
     hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     if not hass.data.get(DOMAIN):
         hass.data.pop(DOMAIN, None)

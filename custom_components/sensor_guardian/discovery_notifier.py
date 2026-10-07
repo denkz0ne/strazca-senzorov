@@ -54,7 +54,13 @@ def async_register_discovery_listeners(hass: HomeAssistant) -> None:
 
     @callback
     def registry_changed(_event: Event) -> None:
-        hass.async_create_task(async_refresh_discovery_notice(hass))
+        async def refresh() -> None:
+            for runtime in hass.data.get(DOMAIN, {}).values():
+                if isinstance(runtime, dict) and runtime.get("reconcile_sources"):
+                    await runtime["reconcile_sources"]()
+            await async_refresh_discovery_notice(hass)
+
+        hass.async_create_task(refresh())
 
     hass.bus.async_listen(EVENT_DEVICE_REGISTRY_UPDATED, registry_changed)
     hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED, registry_changed)

@@ -15,7 +15,7 @@ from homeassistant.helpers.event import (
 )
 
 from ..events import BATTERY_ATTENTION_EVENT, event_payload
-from ..runtime import async_process_devices
+from ..runtime import schedule_device_processing
 from .estimator import estimate_remaining_life
 from .samples import normalize_reading, should_store_sample
 
@@ -189,4 +189,4 @@ def _record_current_device(
     for entity in runtime.get("entities", {}).get(device_id, []):
         entity.async_write_ha_state()
     runtime.get("schedule_save", lambda: None)()
-    hass.async_create_task(async_process_devices(hass, runtime))
+    schedule_device_processing(hass, runtime)

@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 
 from .availability.engine import evaluate_health
 from .diagnosis.dependencies import build_dependencies, correlated_clusters
@@ -112,6 +112,50 @@ def _write_entities(runtime: dict[str, Any], device_id: str) -> None:
         entity.async_write_ha_state()
 
 
+def _source_availability(hass: HomeAssistant, device: dict[str, Any]) -> bool | None:
+    """HA source availability, not an assertion about a new radio packet."""
+    ids = list(device.get("sentinels", []))
+    refs = device.get("entity_refs", {})
+    ids.extend(value for value in refs.values() if isinstance(value, str))
+    states = [state for entity_id in set(ids) if (state := hass.states.get(entity_id))]
+    if any(state.state not in {"unknown", "unavailable"} for state in states):
+        return True
+    if states and all(state.state == "unavailable" for state in states):
+        return False
+    return None
+
+
+def _native_availability(hass: HomeAssistant, device: dict[str, Any]) -> bool | None:
+    entity_id = device.get("entity_refs", {}).get("native_availability")
+    if not entity_id:
+        return device.get("native_available")
+    state = hass.states.get(entity_id)
+    if state is None or state.state == "unknown":
+        return None
+    return (
+        True
+        if state.state == "on"
+        else False
+        if state.state in {"off", "unavailable"}
+        else None
+    )
+
+
+@callback
+def schedule_device_processing(hass: HomeAssistant, runtime: dict[str, Any]) -> None:
+    """Coalesce a burst of selected-entity writes into one runtime worker."""
+    runtime["_process_pending"] = True
+    previous = runtime.get("_process_task")
+    if previous is not None and not previous.done():
+        return
+
+    async def process_pending() -> None:
+        while runtime.pop("_process_pending", False):
+            await async_process_devices(hass, runtime)
+
+    runtime["_process_task"] = hass.async_create_task(process_pending())
+
+
 async def async_process_devices(
     hass: HomeAssistant,
     runtime: dict[str, Any],
@@ -139,7 +183,8 @@ async def async_process_devices(
             startup_at=runtime["startup_at"],
             last_reported=device.get("last_reported_at"),
             profile=profile,
-            native_available=device.get("native_available"),
+            native_available=_native_availability(hass, device),
+            source_available=_source_availability(hass, device),
             previous_state=previous,
             recovery_started_at=device.get("recovery_started_at"),
             startup_grace=timedelta(
@@ -151,6 +196,8 @@ async def async_process_devices(
                 )
             ),
         )
+        if device.get("tracking_mode") == "battery_only":
+            health = {"state": "not_monitored", "reason": "battery_only_mode"}
         new_state = health["state"]
         if new_state == "recovering" and not device.get("recovery_started_at"):
             device["recovery_started_at"] = current.isoformat()

@@ -162,6 +162,19 @@ def _enrich_panel_items(
             row["model"] = row.get("model") or entry.model
         row["identifier"] = display_identifier(row.get("name"))
         source = tracked.get(device_id, {})
+        row["sample_count"] = sum(
+            sample.get("device_id") == device_id for sample in data.get("samples", [])
+        )
+        profile = next(
+            (
+                profile
+                for profile in data.get("availability_profiles", [])
+                if profile["device_id"] == device_id
+            ),
+            {},
+        )
+        row["report_count"] = len(profile.get("report_timestamps", []))
+        row["report_pattern"] = profile.get("pattern", "learning")
         cycle = next(
             (
                 item
@@ -684,7 +697,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
             "tracking_mode": mode,
             "power_type": power_type,
             "entity_refs": candidate["entity_refs"],
-            "sentinels": sorted(set(source_entities + candidate["signal_entities"])),
+            "sentinels": candidate["sentinels"],
             "signal": [
                 {
                     "entity_id": entity_id,
@@ -697,6 +710,10 @@ def async_register_commands(hass: HomeAssistant) -> None:
             "cause": "unknown",
             "cause_confidence": "none",
         }
+        from .sources import apply_source_candidate
+
+        record["user_overrides"] = {"tracking_mode": mode, "power_type": power_type}
+        apply_source_candidate(record, candidate)
         matching_model = next(
             (
                 model
@@ -860,6 +877,94 @@ def async_register_commands(hass: HomeAssistant) -> None:
             msg["id"], {"updated": True, "device_id": msg["device_id"]}
         )
 
+    @websocket_api.websocket_command(
+        {
+            vol.Required("type"): f"{DOMAIN}/update_tracking",
+            vol.Required("device_id"): str,
+            vol.Required("tracking_mode"): vol.In(TRACKING_MODES),
+            vol.Required("power_type"): vol.In(POWER_TYPES),
+        }
+    )
+    @websocket_api.async_response
+    async def ws_update_tracking(hass, connection, msg):
+        _require_admin(connection)
+        runtime = _get_runtime(hass)
+        device = next(
+            (
+                item
+                for item in runtime["data"]["devices"]
+                if item["device_id"] == msg["device_id"]
+            ),
+            None,
+        )
+        if device is None:
+            raise vol.Invalid("Device is not tracked")
+        power, mode = msg["power_type"], msg["tracking_mode"]
+        if (
+            mode.startswith("battery")
+            and power != "mains"
+            and not any(
+                device.get("entity_refs", {}).get(key)
+                for key in ("battery_level", "battery_low", "voltage")
+            )
+        ):
+            raise vol.Invalid("Device has no native battery evidence")
+        mode = "availability_only" if power == "mains" else mode
+        device.update(tracking_mode=mode, power_type=power)
+        device.setdefault("user_overrides", {}).update(
+            tracking_mode=mode, power_type=power
+        )
+        if power == "mains" or mode == "availability_only":
+            device["battery_attention"] = False
+        runtime["refresh_report_subscriptions"]()
+        runtime["refresh_battery_subscriptions"]()
+        _add_device_entities(hass, runtime, device)
+        from .runtime import async_process_devices
+
+        await async_process_devices(hass, runtime)
+        await runtime["storage"].async_save(runtime["data"])
+        connection.send_result(msg["id"], {"updated": True})
+
+    @websocket_api.websocket_command(
+        {
+            vol.Required("type"): f"{DOMAIN}/enable_signal_entities",
+            vol.Required("device_id"): str,
+        }
+    )
+    @websocket_api.async_response
+    async def ws_enable_signal_entities(hass, connection, msg):
+        _require_admin(connection)
+        runtime = _get_runtime(hass)
+        device = next(
+            (
+                item
+                for item in runtime["data"]["devices"]
+                if item["device_id"] == msg["device_id"]
+            ),
+            None,
+        )
+        if device is None:
+            raise vol.Invalid("Device is not tracked")
+        from .discovery import async_discover_devices
+
+        candidate = next(
+            (
+                item
+                for item in await async_discover_devices(hass)
+                if item["device_id"] == device["device_id"]
+            ),
+            None,
+        )
+        enabled = []
+        registry = entity_registry.async_get(hass)
+        for entity_id in candidate["recommended_signal_entities"] if candidate else []:
+            row = registry.async_get(entity_id)
+            if row and row.device_id == device["device_id"] and row.disabled_by:
+                registry.async_update_entity(entity_id, disabled_by=None)
+                enabled.append(entity_id)
+        await runtime["reconcile_sources"]()
+        connection.send_result(msg["id"], {"enabled": enabled})
+
     for handler in (
         ws_get_data,
         ws_import_preview,
@@ -869,6 +974,8 @@ def async_register_commands(hass: HomeAssistant) -> None:
         ws_update_settings,
         ws_add_model,
         ws_update_battery,
+        ws_update_tracking,
+        ws_enable_signal_entities,
     ):
         websocket_api.async_register_command(hass, handler)
 
@@ -900,14 +1007,18 @@ def _add_device_entities(
     add_sensor = runtime["add_entities"].get("sensor")
     if add_binary is None or add_sensor is None:
         raise vol.Invalid("The Home Assistant entity platforms are not ready")
-    binary_entities = [GuardianProblem(hass, device, group)]
+    binary_entities = []
+    if not any(isinstance(entity, GuardianProblem) for entity in group):
+        binary_entities.append(GuardianProblem(hass, device, group))
     if (
         device.get("tracking_mode") in {"battery_and_availability", "battery_only"}
         and device.get("power_type") != "mains"
+        and not any(isinstance(entity, GuardianBatteryAttention) for entity in group)
     ):
         binary_entities.append(GuardianBatteryAttention(hass, device, group))
     add_binary(binary_entities)
-    add_sensor([GuardianStatus(hass, device, group)])
+    if not any(isinstance(entity, GuardianStatus) for entity in group):
+        add_sensor([GuardianStatus(hass, device, group)])
 
 
 async def _read_battery_notes_source(hass: HomeAssistant):

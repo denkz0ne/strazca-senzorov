@@ -54,8 +54,8 @@ def test_event_only_candidate_with_unknown_type_is_not_forced():
 def test_battery_only_candidate_and_manual_dismissal_data_shape():
     candidate = rank_device_entities("d3", [entity("sensor.sensor_battery", unit="%")])
     assert candidate is not None
-    assert candidate.suggested_mode == "battery_only"
-    assert candidate.confidence == "medium"
+    assert candidate.suggested_mode == "battery_and_availability"
+    assert candidate.confidence == "high"
 
 
 def test_friendly_identifier_is_name_only_and_accepts_zb_and_zbt_patterns():
