@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import UTC, datetime, timedelta
 
 from homeassistant.config_entries import ConfigEntry
@@ -45,6 +46,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await storage.async_save(data)
     from .sources import async_reconcile_sources
 
+    if any(device.get("source_binding_version", 0) < 2 for device in data["devices"]):
+        from homeassistant.helpers.storage import Store
+
+        backup = Store(hass, 1, f"{DOMAIN}.pre_source_repair.{entry.entry_id}")
+        if await backup.async_load() is None:
+            await backup.async_save(deepcopy(data))
     if await async_reconcile_sources(hass, data):
         await storage.async_save(data)
     runtime = {
@@ -53,6 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "startup_at": datetime.now(UTC),
         "entities": {},
         "add_entities": {},
+        "ready": False,
     }
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
     from .battery.collector import async_subscribe_battery
@@ -167,11 +175,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     refresh_battery_subscriptions()
 
     async def reconcile_and_refresh(_event=None) -> None:
-        if await async_reconcile_sources(hass, data):
+        if runtime.get("stopping") or not runtime["ready"]:
+            return
+        if await async_reconcile_sources(hass, data) or _event is not None:
             refresh_report_subscriptions()
             refresh_battery_subscriptions()
             schedule_save()
-        await async_process_devices(hass, runtime)
+            schedule_device_processing(hass, runtime)
 
     runtime["reconcile_sources"] = reconcile_and_refresh
     if not hass.is_running:
@@ -196,6 +206,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await hass.config_entries.async_forward_entry_setups(
         entry, ["binary_sensor", "sensor"]
     )
+    runtime["ready"] = True
     await async_process_devices(hass, runtime)
     from .discovery_notifier import async_refresh_discovery_notice
 
@@ -205,9 +216,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload the entry and release integration-owned data."""
+    runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if runtime:
+        runtime["stopping"] = True
+        task = runtime.get("_process_task")
+        if task and not task.done():
+            task.cancel()
     if not await hass.config_entries.async_unload_platforms(
         entry, ["binary_sensor", "sensor"]
     ):
+        if runtime:
+            runtime["stopping"] = False
         return False
     runtime = hass.data.get(DOMAIN, {}).get(entry.entry_id)
     if runtime:

@@ -109,7 +109,8 @@ def _active_incident(
 
 def _write_entities(runtime: dict[str, Any], device_id: str) -> None:
     for entity in runtime.get("entities", {}).get(device_id, []):
-        entity.async_write_ha_state()
+        if entity.hass is not None and entity.entity_id:
+            entity.async_write_ha_state()
 
 
 def _source_availability(hass: HomeAssistant, device: dict[str, Any]) -> bool | None:
@@ -144,6 +145,8 @@ def _native_availability(hass: HomeAssistant, device: dict[str, Any]) -> bool | 
 @callback
 def schedule_device_processing(hass: HomeAssistant, runtime: dict[str, Any]) -> None:
     """Coalesce a burst of selected-entity writes into one runtime worker."""
+    if runtime.get("stopping") or not runtime.get("ready", True):
+        return
     runtime["_process_pending"] = True
     previous = runtime.get("_process_task")
     if previous is not None and not previous.done():
@@ -164,6 +167,8 @@ async def async_process_devices(
 ) -> None:
     """Evaluate every tracked device, persist transitions and deduplicate events."""
     current = now or datetime.now(UTC)
+    if runtime.get("stopping"):
+        return
     data = runtime["data"]
     changed_ids: set[str] = set()
     for device in data["devices"]:

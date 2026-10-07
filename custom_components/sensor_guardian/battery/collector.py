@@ -187,6 +187,7 @@ def _record_current_device(
         payload["remaining_days_range"] = estimate.get("remaining_days_range")
         hass.bus.async_fire(BATTERY_ATTENTION_EVENT, payload)
     for entity in runtime.get("entities", {}).get(device_id, []):
-        entity.async_write_ha_state()
+        if entity.hass is not None and entity.entity_id:
+            entity.async_write_ha_state()
     runtime.get("schedule_save", lambda: None)()
     schedule_device_processing(hass, runtime)

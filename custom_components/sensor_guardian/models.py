@@ -64,6 +64,9 @@ class DeviceRecord(TypedDict):
     availability_profile_id: NotRequired[str | None]
     active_incident_ids: NotRequired[list[str]]
     user_overrides: NotRequired[dict[str, object]]
+    source_binding_version: NotRequired[int]
+    source_status: NotRequired[str]
+    report_profile_entity_id: NotRequired[str | None]
 
 
 class BatterySample(TypedDict):
