@@ -45,7 +45,12 @@ async def test_prevention_reads_preserve_nulls_and_stock_writes(
     assert (await client.receive_json())["success"]
     await client.send_json_auto_id({"type": "sensor_guardian/get_stock"})
     response = await client.receive_json()
-    assert response["result"]["items"][0]["on_hand"] == 8
+    assert (
+        next(
+            row for row in response["result"]["items"] if row["battery_type"] == "AAA"
+        )["on_hand"]
+        == 8
+    )
     await client.close()
     await hass.config_entries.async_unload(entry.entry_id)
 
@@ -101,4 +106,3 @@ async def test_onboarding_preview_apply_is_idempotent_and_excludes_resolved(
     )
     await client.close()
     await hass.config_entries.async_unload(entry.entry_id)
-
