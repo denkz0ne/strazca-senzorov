@@ -189,10 +189,11 @@ def _record_current_device(
         payload["remaining_days_range"] = estimate.get("remaining_days_range")
         hass.bus.async_fire(BATTERY_ATTENTION_EVENT, payload)
         if settings.get("notifications_enabled", True):
+            name = device.get("name") or "Sledované zariadenie"
+            level_text = current_level if current_level is not None else "neznáma"
             async_create(
                 hass,
-                f"{device.get('name') or 'Sledované zariadenie'}: batéria vyžaduje pozornosť. "
-                f"Úroveň: {current_level if current_level is not None else 'neznáma'} %. "
+                f"{name}: batéria vyžaduje pozornosť. Úroveň: {level_text} %. "
                 "Podrobnosti sú v [Strážcovi senzorov](/sensor_guardian).",
                 title="Strážca senzorov — batéria",
                 notification_id=f"{DOMAIN}_battery_{device_id}",

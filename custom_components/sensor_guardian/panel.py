@@ -6,7 +6,7 @@ from homeassistant.components import frontend
 from homeassistant.components.http.server import StaticPathConfig
 from homeassistant.core import HomeAssistant
 
-from .const import DOMAIN, TITLE
+from .const import DOMAIN, TITLE, VERSION
 
 
 async def async_register_panel(hass: HomeAssistant) -> None:
@@ -25,7 +25,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         config={
             "_panel_custom": {
                 "name": "sensor-guardian-panel",
-                "js_url": f"/{DOMAIN}/panel.js",
+                "js_url": f"/{DOMAIN}/panel.js?v={VERSION}",
             }
         },
         update=True,

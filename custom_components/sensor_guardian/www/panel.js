@@ -13,6 +13,7 @@ class SensorGuardianPanel extends HTMLElement {
     this.preview = null;
     this.selectedDevices = new Set();
     this.loaded = false;
+    this.openDetails = new Set();
   }
 
   set hass(value) {
@@ -177,10 +178,14 @@ class SensorGuardianPanel extends HTMLElement {
         const signalText = (item.signal_values || []).map((s) => `${s.kind} ${s.value}`).join(", ") || ((item.recommended_signal_entities || []).length ? "entity vypnuté" : "—");
         [item.name || "Neznámy názov", item.identifier || "", item.area_name || "—", item.source_integration || "neznáma", this.label(item.health_state || "unknown"), this.label(item.cause || "unknown"), this.label(item.power_type || "unknown"), typeof item.battery_level === "number" ? `${item.battery_level} %` : "—", signalText, this.formatTime(item.last_reported_at)].forEach((value) => { const cell = document.createElement("td"); cell.textContent = value; row.append(cell); });
         const detailsRow = document.createElement("tr"); const detailsCell = document.createElement("td"); detailsCell.colSpan = 10; const details = document.createElement("details"); const summary = document.createElement("summary"); summary.textContent = "Batéria a incidenty"; details.append(summary);
+        details.open = this.openDetails.has(item.device_id);
+        details.addEventListener("toggle", () => {
+          details.open ? this.openDetails.add(item.device_id) : this.openDetails.delete(item.device_id);
+        });
         const batteryLevel = typeof item.battery_level === "number" ? `${item.battery_level}%` : "neznáma";
         const estimate = item.battery_estimate?.remaining_days_range;
         const life = estimate ? `${estimate.min}–${estimate.max} dní` : "odhad nedostupný";
-        this.text(details, `Batéria: ${batteryLevel} · ${item.battery_type || "typ neznámy"} × ${item.battery_quantity || "?"} · posledná výmena: ${item.last_replaced_at || "nezaznamenaná"} · ${life}`, "meta");
+        this.text(details, `Batéria: ${batteryLevel} · ${item.battery_type || "typ neznámy"} × ${item.battery_quantity || "?"} · posledná výmena: ${item.last_replaced_at ? this.formatTime(item.last_replaced_at) : "nezaznamenaná"} · ${life}`, "meta");
         this.text(details, `Natívne battery low: ${item.battery_low === true ? "áno" : item.battery_low === false ? "nie" : "neznáme"} · napätie: ${item.voltage ?? "neznáme"}${item.voltage_unit ? ` ${item.voltage_unit}` : ""} · signál: ${(item.signal_values || []).map((s) => `${s.kind} ${s.value}`).join(", ") || "neznámy"}`, "meta");
         this.text(details, `História: ${item.sample_count || 0} batériových vzoriek · ${item.report_count || 0} hlásení vybraného zdroja · ${this.label(item.health_reason || "unknown")}`, "meta");
         if (!estimate && item.power_type !== "mains") this.text(details, "Odhad potrebuje aspoň 4 použiteľné vzorky počas 7 dní s poklesom úrovne alebo históriu ukončených výmen. Aktuálne percento sa zobrazuje nezávisle od odhadu.", "meta");
@@ -585,6 +590,8 @@ class SensorGuardianPanel extends HTMLElement {
   label(value) {
     const names = {
       unknown: "neznáme",
+      available: "dostupné",
+      unavailable: "nedostupné",
       recommended: "odporúčanie každého zariadenia",
       enabled: "upozornenia zapnuté",
       disabled: "upozornenia vypnuté",

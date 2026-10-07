@@ -240,7 +240,15 @@ async def async_discover_devices(
             source_row = next(
                 (
                     entity
-                    for entity in native_rows.get(device.id, [])
+                    for entity in sorted(
+                        native_rows.get(device.id, []),
+                        key=lambda entity: (
+                            entity.config_entry_id not in device.config_entries,
+                            entity.entity_id
+                            != candidate.entity_refs.get("battery_level"),
+                            entity.entity_id,
+                        ),
+                    )
                     if not entity.disabled_by
                 ),
                 None,
@@ -289,5 +297,20 @@ async def async_discover_devices(
             row["availability_state"] = (
                 availability_state.state if availability_state else "unknown"
             )
+            if availability_state is None:
+                source_states = [
+                    state
+                    for entity_id in candidate.sentinels
+                    if (state := hass.states.get(entity_id))
+                ]
+                if any(
+                    state.state not in {"unknown", "unavailable"}
+                    for state in source_states
+                ):
+                    row["availability_state"] = "available"
+                elif source_states and all(
+                    state.state == "unavailable" for state in source_states
+                ):
+                    row["availability_state"] = "unavailable"
             result.append(row)
     return result

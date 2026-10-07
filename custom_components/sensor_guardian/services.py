@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import voluptuous as vol
+from homeassistant.components.persistent_notification import async_dismiss
 from homeassistant.core import HomeAssistant, ServiceCall
 
 from .battery.replacement import confirm_replacement
@@ -85,6 +86,7 @@ def async_register_services(hass: HomeAssistant) -> None:
         await runtime["storage"].async_save(runtime["data"])
         if payload is not None:
             hass.bus.async_fire(BATTERY_REPLACED_EVENT, payload)
+            async_dismiss(hass, f"{DOMAIN}_battery_{device_id}")
         _write_device_entities(runtime, device_id)
 
     async def confirm_cause(call: ServiceCall) -> None:

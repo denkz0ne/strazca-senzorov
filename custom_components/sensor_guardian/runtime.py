@@ -47,7 +47,10 @@ def _merge_data(runtime: dict[str, Any], updated: dict[str, Any]) -> None:
 
 
 def _evidence_for_device(
-    hass: HomeAssistant, device: dict[str, Any]
+    hass: HomeAssistant,
+    device: dict[str, Any],
+    data: dict[str, Any] | None = None,
+    now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Collect selected current values only; avoid copying source attributes."""
     evidence: list[dict[str, Any]] = []
@@ -62,10 +65,47 @@ def _evidence_for_device(
             if level is not None:
                 evidence.append({"feature": "battery_level", "value": level})
         low_entity = refs.get("battery_low")
-        if isinstance(low_entity, str) and (state := hass.states.get(low_entity)):
+        if (
+            isinstance(low_entity, str)
+            and (state := hass.states.get(low_entity))
+            and state.state in {"on", "off"}
+        ):
             evidence.append(
                 {"feature": "native_battery_low", "value": state.state == "on"}
             )
+    # Dropout often makes the live battery entity unavailable; preserve the
+    # last usable observation as evidence, with a bounded age, not as live data.
+    if data is not None and device.get("power_type") != "mains":
+        current = now or datetime.now(UTC)
+        known = {item["feature"] for item in evidence}
+        for sample in reversed(data.get("samples", [])):
+            if sample["device_id"] != device["device_id"]:
+                continue
+            try:
+                stamp = datetime.fromisoformat(sample["timestamp"])
+                stamp = stamp.replace(tzinfo=UTC) if stamp.tzinfo is None else stamp
+            except ValueError, TypeError, KeyError:
+                continue
+            if not 0 <= (current - stamp).total_seconds() <= 7 * 86400:
+                continue
+            if set(sample.get("quality_flags", [])).intersection(
+                {"stale", "invalid_percent", "future_timestamp"}
+            ):
+                continue
+            for key, feature in (
+                ("level_percent", "battery_level"),
+                ("native_low", "native_battery_low"),
+            ):
+                if feature not in known and sample.get(key) is not None:
+                    evidence.append(
+                        {
+                            "feature": feature,
+                            "value": sample[key],
+                            "source": "last_usable_sample",
+                            "timestamp": sample["timestamp"],
+                        }
+                    )
+                    known.add(feature)
     for signal in device.get("signal", []):
         if not isinstance(signal, dict) or not isinstance(signal.get("entity_id"), str):
             continue
@@ -235,11 +275,12 @@ async def async_process_devices(
     for device in data["devices"]:
         device_id = device["device_id"]
         state = device.get("health_state", "unknown")
-        evidence = _evidence_for_device(hass, device)
+        evidence = _evidence_for_device(hass, device, data, current)
         scoring = score_evidence(evidence)
         cause_result = classify_cause(scoring)
-        device["cause"] = cause_result["cause"]
-        device["cause_confidence"] = cause_result["confidence"]
+        problem = state in {"degraded", "stale", "offline"}
+        device["cause"] = cause_result["cause"] if problem else "unknown"
+        device["cause_confidence"] = cause_result["confidence"] if problem else "none"
         if state in {"degraded", "stale", "offline"}:
             existing = _active_incident(data, [device_id])
             updated, incident = open_or_update_incident(
