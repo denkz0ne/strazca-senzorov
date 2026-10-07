@@ -324,6 +324,8 @@ async def async_process_devices(
                 ]
                 if state == "not_monitored":
                     incident["resolution"] = "monitoring_disabled"
+                    incident["health_state"] = "not_monitored"
+                    incident["notification_state"] = "cancelled"
                     cancelled_notifications.append(incident["incident_id"])
                 elif was_notified:
                     recovery_events.append((device_id, incident["incident_id"]))
@@ -363,11 +365,17 @@ async def async_process_devices(
         }:
             parent_incidents.append((incident["incident_id"], ids))
 
-    active_parent_ids = {cluster["dependency_id"] for cluster in clusters}
+    active_parent_ids = {
+        (cluster["dependency_id"], tuple(sorted(cluster["device_ids"])))
+        for cluster in clusters
+    }
     for incident in data["incidents"]:
         if len(incident.get("device_ids", [])) < 3 or incident.get("closed_at"):
             continue
-        if incident.get("dependency_id") not in active_parent_ids:
+        if (
+            incident.get("dependency_id"),
+            tuple(sorted(incident["device_ids"])),
+        ) not in active_parent_ids:
             was_notified = incident.get("notification_state") == "sent"
             closed = close_incident(incident, now=current)
             incident.clear()
@@ -381,19 +389,27 @@ async def async_process_devices(
                     ),
                     None,
                 )
-                if device is not None:
+                if (
+                    device is not None
+                    and device.get("parent_incident_id") == incident["incident_id"]
+                ):
                     device["parent_incident_id"] = None
                 for child in data["incidents"]:
-                    if child.get("device_ids") == [device_id] and not child.get(
-                        "closed_at"
+                    if (
+                        child.get("device_ids") == [device_id]
+                        and not child.get("closed_at")
+                        and child.get("parent_incident_id") == incident["incident_id"]
                     ):
                         child["parent_incident_id"] = None
             if was_notified:
-                if any(
-                    device.get("health_state") == "not_monitored"
+                if not all(
+                    device.get("health_state") == "healthy"
                     for device in data["devices"]
                     if device["device_id"] in incident["device_ids"]
                 ):
+                    incident["resolution"] = "membership_changed"
+                    incident["health_state"] = "superseded"
+                    incident["notification_state"] = "cancelled"
                     cancelled_notifications.append(incident["incident_id"])
                 else:
                     recovery_events.append(

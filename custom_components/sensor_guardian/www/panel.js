@@ -598,6 +598,7 @@ class SensorGuardianPanel extends HTMLElement {
       enabled: "upozornenia zapnuté",
       disabled: "upozornenia vypnuté",
       not_monitored: "dostupnosť sa nesleduje",
+      superseded: "skupina sa zmenila",
       source_available_report_pattern_learning: "Zdroj HA je dostupný; interval hlásení sa učí",
       source_entities_unavailable: "Zdrojové entity HA sú nedostupné",
       report_pattern_not_periodic: "Zatiaľ chýba spoľahlivý interval hlásení",

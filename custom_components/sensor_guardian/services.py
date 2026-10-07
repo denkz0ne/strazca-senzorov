@@ -207,4 +207,5 @@ def _tracked_device(runtime: dict[str, Any], device_id: str) -> dict[str, Any]:
 
 def _write_device_entities(runtime: dict[str, Any], device_id: str) -> None:
     for entity in runtime.get("entities", {}).get(device_id, []):
-        entity.async_write_ha_state()
+        if entity.hass is not None and entity.entity_id:
+            entity.async_write_ha_state()
