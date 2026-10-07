@@ -53,7 +53,6 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
   await page.getByRole("combobox", { name: "Režim sledovaného zariadenia" }).first().selectOption("battery_only");
   await page.getByRole("button", { name: "Uložiť sledovanie" }).first().click();
   assert.equal(await page.evaluate(() => window.commands.find(c => c.type === "sensor_guardian/update_tracking").tracking_mode), "battery_only");
-  await page.locator("summary").first().click();
   await page.getByRole("button", { name: "Zapnúť odporúčané signálové entity" }).click();
   assert.equal(await page.evaluate(() => window.commands.find(c => c.type === "sensor_guardian/enable_signal_entities").device_id), "battery");
   await page.setViewportSize({ width: 390, height: 844 });

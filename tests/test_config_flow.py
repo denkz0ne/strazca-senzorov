@@ -77,6 +77,7 @@ async def test_timer_callbacks_are_event_loop_safe(hass, monkeypatch):
 
     def capture_call_later(_hass, _delay, action):
         callbacks["flush"] = action
+        callbacks["flush_count"] = callbacks.get("flush_count", 0) + 1
         return lambda: None
 
     def capture_interval(_hass, action, _interval):
@@ -92,9 +93,11 @@ async def test_timer_callbacks_are_event_loop_safe(hass, monkeypatch):
 
     runtime = hass.data[DOMAIN][entry.entry_id]
     runtime["schedule_save"]()
+    runtime["schedule_save"]()
 
     assert is_callback(callbacks["flush"])
     assert is_callback(callbacks["periodic"])
+    assert callbacks["flush_count"] == 1
     await hass.config_entries.async_unload(entry.entry_id)
 
 

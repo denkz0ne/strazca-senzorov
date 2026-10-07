@@ -364,5 +364,27 @@ async def test_panel_can_track_a_candidate_and_attach_runtime_entities(
         )
     } == before_ids
     assert runtime["data"]["samples"][-1]["level_percent"] == 10
+    # Enabling diagnostics must target only the tracked device's native signal.
+    signal = er.async_get(hass).async_get_or_create(
+        "sensor",
+        "sensor_source",
+        "rssi",
+        config_entry=source_entry,
+        device_id=device.id,
+        original_name="RSSI",
+        disabled_by=er.RegistryEntryDisabler.INTEGRATION,
+    )
+    await client.send_json_auto_id(
+        {
+            "type": "sensor_guardian/enable_signal_entities",
+            "device_id": device.id,
+        }
+    )
+    response = await client.receive_json()
+    assert response["success"] is True
+    assert response["result"]["enabled"] == [signal.entity_id]
+    assert er.async_get(hass).async_get(signal.entity_id).disabled_by is None
+    await hass.async_block_till_done()
+    assert runtime["data"]["devices"][0]["signal"][0]["entity_id"] == signal.entity_id
     await client.close()
     await hass.config_entries.async_unload(entry.entry_id)
