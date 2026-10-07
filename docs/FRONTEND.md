@@ -12,6 +12,8 @@ The side panel is for detailed management and diagnosis; automations use the sma
 
 The implemented panel has these five tabs. Battery assignments and tracked battery devices use compact tables; discovery candidates use a selectable, filterable table. Unsupported registry or sensor data stays blank/unknown rather than inferred. Panel remains useful with generic provider data and labels unsupported diagnostics clearly.
 
+Runtime repair 0.1.1 displays current battery percentage and signal in Overview columns and adds sample/report counts, learning explanations and editable tracked mode/power in the detail. Bulk tracking defaults to the recommendation shown for each row. Recommended signal entities can be enabled only through an explicit per-device confirmation. Overview/Batteries/Incidents refresh at thirty-second intervals, preserve open details and avoid interrupting focused controls. CI exercises these decisions in Chromium with a simulated HA API; owner live UI validation remains separate.
+
 ## Observed current limitations
 
 - The **Devices** discovery tab uses the HA device name, area, and source integration when available. Its pending notice uses the native Home Assistant notification badge (one persistent summary); custom panels have no supported per-panel sidebar counter.

@@ -215,12 +215,12 @@ class SensorGuardianPanel extends HTMLElement {
     if (!this.items.length) return this.empty(content, "Nenašli sa nové odporúčania zariadení.");
     const filters = this.actions(content);
     const integrations = this.select(filters, "Filtrovať podľa integrácie", ["all", ...(this.page.filters?.integrations || [...new Set(this.items.map((i) => i.source_integration || "unknown"))])]);
-    const powers = this.select(filters, "Filtrovať podľa napájania", ["all", "battery_data", "unknown"]);
+    const powers = this.select(filters, "Filtrovať podľa napájania", ["all", "battery_data", "mains", "rechargeable", "unknown"]);
     const areas = this.select(filters, "Filtrovať podľa oblasti", ["all", ...(this.page.filters?.areas || [...new Set(this.items.map((i) => i.area_name || "—"))])]);
     const availability = this.select(filters, "Filtrovať podľa dostupnosti", ["all", ...(this.page.filters?.availability || ["on", "off", "unavailable", "unknown"])]);
     const visible = () => this.items.filter((item) =>
       (integrations.value === "all" || (item.source_integration || "unknown") === integrations.value) &&
-      (powers.value === "all" || (powers.value === "battery_data" ? item.has_battery_data : !item.has_battery_data)) &&
+      (powers.value === "all" || (powers.value === "battery_data" ? item.has_battery_data : (item.power_type || "unknown") === powers.value)) &&
       (areas.value === "all" || (item.area_name || "—") === areas.value) &&
       (availability.value === "all" || (item.availability_state || "unknown") === availability.value));
     integrations.value = this.discoveryIntegration || "all";
@@ -591,6 +591,8 @@ class SensorGuardianPanel extends HTMLElement {
     const names = {
       unknown: "neznáme",
       available: "dostupné",
+      all: "všetky",
+      battery_data: "batériové zariadenia",
       unavailable: "nedostupné",
       recommended: "odporúčanie každého zariadenia",
       enabled: "upozornenia zapnuté",

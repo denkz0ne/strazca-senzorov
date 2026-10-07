@@ -32,6 +32,9 @@ def apply_source_candidate(device: dict[str, Any], candidate: dict[str, Any]) ->
     if not overrides.get("entity_refs"):
         device["entity_refs"] = dict(refs)
         device["sentinels"] = list(candidate["sentinels"])
+        device["availability_sentinels"] = list(
+            candidate.get("availability_sentinels", candidate["sentinels"][:1])
+        )
         device["signal"] = [
             {
                 "entity_id": entity_id,

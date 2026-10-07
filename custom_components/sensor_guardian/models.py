@@ -67,6 +67,7 @@ class DeviceRecord(TypedDict):
     source_binding_version: NotRequired[int]
     source_status: NotRequired[str]
     report_profile_entity_id: NotRequired[str | None]
+    availability_sentinels: NotRequired[list[str]]
 
 
 class BatterySample(TypedDict):

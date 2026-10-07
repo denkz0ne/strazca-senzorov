@@ -157,9 +157,10 @@ def _write_entities(runtime: dict[str, Any], device_id: str) -> None:
 
 def _source_availability(hass: HomeAssistant, device: dict[str, Any]) -> bool | None:
     """HA source availability, not an assertion about a new radio packet."""
-    ids = list(device.get("sentinels", []))
+    ids = list(device.get("availability_sentinels", device.get("sentinels", [])))
     refs = device.get("entity_refs", {})
-    ids.extend(value for value in refs.values() if isinstance(value, str))
+    if "availability_sentinels" not in device:
+        ids.extend(value for value in refs.values() if isinstance(value, str))
     states = [state for entity_id in set(ids) if (state := hass.states.get(entity_id))]
     if any(state.state not in {"unknown", "unavailable"} for state in states):
         return True
@@ -215,6 +216,9 @@ async def async_process_devices(
     changed_ids: set[str] = set()
     for device in data["devices"]:
         if device.get("tracking_mode") == "ignored":
+            device["health_state"] = "not_monitored"
+            device["health_reason"] = "tracking_disabled"
+            changed_ids.add(device["device_id"])
             continue
         previous = device.get("health_state", "unknown")
         profile = next(
@@ -272,6 +276,7 @@ async def async_process_devices(
     }
     new_single_incidents: list[tuple[str, str]] = []
     recovery_events: list[tuple[str, str]] = []
+    cancelled_notifications: list[str] = []
     for device in data["devices"]:
         device_id = device["device_id"]
         state = device.get("health_state", "unknown")
@@ -305,7 +310,7 @@ async def async_process_devices(
             }:
                 new_single_incidents.append((device_id, incident["incident_id"]))
             changed_ids.add(device_id)
-        elif state == "healthy":
+        elif state in {"healthy", "not_monitored"}:
             incident = _active_incident(data, [device_id])
             if incident is not None:
                 was_notified = incident.get("notification_state") == "sent"
@@ -317,7 +322,10 @@ async def async_process_devices(
                     for item in device.get("active_incident_ids", [])
                     if item != incident["incident_id"]
                 ]
-                if was_notified:
+                if state == "not_monitored":
+                    incident["resolution"] = "monitoring_disabled"
+                    cancelled_notifications.append(incident["incident_id"])
+                elif was_notified:
                     recovery_events.append((device_id, incident["incident_id"]))
                 changed_ids.add(device_id)
 
@@ -381,9 +389,16 @@ async def async_process_devices(
                     ):
                         child["parent_incident_id"] = None
             if was_notified:
-                recovery_events.append(
-                    (incident["device_ids"][0], incident["incident_id"])
-                )
+                if any(
+                    device.get("health_state") == "not_monitored"
+                    for device in data["devices"]
+                    if device["device_id"] in incident["device_ids"]
+                ):
+                    cancelled_notifications.append(incident["incident_id"])
+                else:
+                    recovery_events.append(
+                        (incident["device_ids"][0], incident["incident_id"])
+                    )
 
     pending_events: list[tuple[str, str, list[str] | None]] = []
     for device_id, incident_id in new_single_incidents:
@@ -415,6 +430,8 @@ async def async_process_devices(
         _write_entities(runtime, device_id)
     if changed_ids:
         await runtime["storage"].async_save(runtime["data"])
+    for incident_id in cancelled_notifications:
+        async_dismiss(hass, f"{DOMAIN}_incident_{incident_id}")
     for device_id, incident_id, affected_ids in pending_events:
         device = next(
             item

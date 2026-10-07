@@ -44,6 +44,7 @@ class DiscoveryCandidate:
     reasons: tuple[str, ...]
     sentinels: tuple[str, ...] = ()
     power_type: str = "unknown"
+    availability_sentinels: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-friendly candidate."""
@@ -53,6 +54,7 @@ class DiscoveryCandidate:
             "recommended_signal_entities",
             "reasons",
             "sentinels",
+            "availability_sentinels",
         ):
             result[key] = list(result[key])
         return result
@@ -151,6 +153,30 @@ def rank_device_entities(
         or (getattr(entity, "unit_of_measurement", None) or "").lower() in {"w", "kwh"}
         for entity in primary
     )
+    controls = [
+        entity.entity_id
+        for entity in primary
+        if entity.domain in {"switch", "light", "climate", "fan", "cover"}
+    ]
+    measurements = [entity.entity_id for entity in primary if _kind(entity) is None]
+    preferred = (
+        [refs["native_availability"]]
+        if refs["native_availability"]
+        else controls
+        or measurements
+        or [value for value in refs.values() if value]
+        or signals
+    )
+    availability_sentinels = preferred[:1]
+    sentinel_ids = list(
+        dict.fromkeys(
+            availability_sentinels
+            + controls
+            + [value for value in refs.values() if value]
+            + [entity.entity_id for entity in primary]
+            + signals
+        )
+    )[:3]
     has_availability = (
         has_battery or mains or refs["native_availability"] is not None or bool(signals)
     )
@@ -186,6 +212,7 @@ def rank_device_entities(
         tuple(reasons),
         tuple(sentinel_ids),
         "replaceable_battery" if has_battery else "mains" if mains else "unknown",
+        tuple(availability_sentinels),
     )
 
 

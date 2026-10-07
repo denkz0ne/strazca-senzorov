@@ -10,6 +10,7 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import websocket_api
+from homeassistant.components.persistent_notification import async_dismiss
 from homeassistant.components.websocket_api.connection import ActiveConnection
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import Unauthorized
@@ -918,6 +919,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         )
         if power == "mains" or mode == "availability_only":
             device["battery_attention"] = False
+            async_dismiss(hass, f"{DOMAIN}_battery_{device['device_id']}")
         runtime["refresh_report_subscriptions"]()
         runtime["refresh_battery_subscriptions"]()
         _add_device_entities(hass, runtime, device)
