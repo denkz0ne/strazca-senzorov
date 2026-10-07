@@ -273,7 +273,7 @@ async def test_authenticated_websocket_returns_only_curated_overview(
 
 
 async def test_panel_can_track_a_candidate_and_attach_runtime_entities(
-    hass, hass_storage, hass_ws_client
+    hass, hass_storage, hass_ws_client, monkeypatch
 ):
     from homeassistant.helpers import device_registry as dr
     from homeassistant.helpers import entity_registry as er
@@ -386,5 +386,22 @@ async def test_panel_can_track_a_candidate_and_attach_runtime_entities(
     assert er.async_get(hass).async_get(signal.entity_id).disabled_by is None
     await hass.async_block_till_done()
     assert runtime["data"]["devices"][0]["signal"][0]["entity_id"] == signal.entity_id
+    from unittest.mock import MagicMock
+
+    from custom_components.sensor_guardian import websocket_api as guardian_api
+
+    dismiss = MagicMock()
+    monkeypatch.setattr(guardian_api, "async_dismiss", dismiss, raising=False)
+    await client.send_json_auto_id(
+        {
+            "type": "sensor_guardian/update_tracking",
+            "device_id": device.id,
+            "tracking_mode": "availability_only",
+            "power_type": "mains",
+        }
+    )
+    response = await client.receive_json()
+    assert response["success"] is True
+    dismiss.assert_called_once_with(hass, f"sensor_guardian_battery_{device.id}")
     await client.close()
     await hass.config_entries.async_unload(entry.entry_id)
