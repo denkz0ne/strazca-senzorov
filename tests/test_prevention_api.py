@@ -101,6 +101,32 @@ async def test_onboarding_preview_apply_is_idempotent_and_excludes_resolved(
     runtime = hass.data["sensor_guardian"][entry.entry_id]
     assert len(runtime["data"]["devices"]) == 1
     assert runtime["data"]["devices"][0]["source_integration"] == "zha"
+    other = dr.async_get(hass).async_get_or_create(
+        config_entry_id=source.entry_id,
+        identifiers={("zha", "other")},
+        name="Other",
+    )
+    foreign = er.async_get(hass).async_get_or_create(
+        "sensor",
+        "zha",
+        "foreign-battery",
+        device_id=other.id,
+        config_entry=source,
+        original_name="Battery",
+        original_device_class="battery",
+        unit_of_measurement="%",
+    )
+    await client.send_json_auto_id(
+        {
+            "type": "sensor_guardian/update_sources",
+            "device_id": device.id,
+            "entity_refs": {"battery_level": foreign.entity_id},
+            "availability_entity": row.entity_id,
+        }
+    )
+    rejected = await client.receive_json()
+    assert rejected["success"] is False
+    assert rejected["error"]["code"] == "invalid_source"
     assert (
         runtime["data"]["devices"][0]["entity_refs"]["battery_level"] == row.entity_id
     )
