@@ -18,6 +18,7 @@ Tento dokument popisuje implementáciu v `custom_components/sensor_guardian`, ni
 | `config_flow.py`, `const.py` | Jediný globálny config entry a identita integrácie |
 | `models.py`, `storage.py`, `migrations.py` | Typované záznamy, validácia a HA Store schema |
 | `discovery.py` | Kandidáti z HA registrov, entity signály a odporúčanie sledovania |
+| `sources.py`, `diagnostics.py` | Idempotentná oprava pôvodných zdrojov, verzia väzby a anonymizované pokrytie dôkazov |
 | `availability/` | Reportovací profil, zber dôkazov dostupnosti a health transitions |
 | `battery/` | Zber/normalizácia vzoriek, životné cykly a odhad výdrže |
 | `diagnosis/` | Normalizované dôkazy, score pravidlá, zdieľané závislosti a incidenty |
@@ -53,7 +54,13 @@ Nová perzistentná kolekcia alebo zmena významu záznamu vyžaduje: úpravu Ty
 
 Všetky príkazy používajú prefix `sensor_guardian/`, kontrolujú administrátorské oprávnenie a validujú vstup. Read command `get_data` vyberá jednu sekciu (`overview`, `batteries`, `devices`, `discovery`, `incidents`, `settings`) a obmedzenú stránku. Serializéry majú allow-list polí; nezverejňuj celý storage payload.
 
-Write commands implementované teraz: `import_preview`, `import_apply`, `track_device`, `dismiss_candidate`, `update_settings`, `add_model`, `update_battery`. Každý nový command potrebuje schému, autorizáciu, bounds/ID kontroly, persistence ordering, odpoveď/error a WebSocket test. Panel nesmie byť zdrojom trvalého stavu.
+Write commands implementované teraz: `import_preview`, `import_apply`, `track_device`, `dismiss_candidate`, `update_settings`, `add_model`, `update_battery`, `update_tracking`, `enable_signal_entities`. Každý nový command potrebuje schému, autorizáciu, bounds/ID kontroly, persistence ordering, odpoveď/error a WebSocket test. Panel nesmie byť zdrojom trvalého stavu.
+
+`update_tracking` prijíma device_id, tracking_mode a power_type; zachováva existujúce záznamy/unique ID a ukladá explicitné voľby do user_overrides. `enable_signal_entities` prijíma device_id a znovu overuje odporúčania v natívnom registri; zapína iba aktuálne vypnuté signálové entity priradené danému sledovanému zariadeniu.
+
+Binding version 2 sa prehodnocuje zo zdrojových registrov pri štarte a zmenách registrov. Pred opravou legacy väzieb sa uloží samostatný Store `sensor_guardian.pre_source_repair.<entry_id>`; nejde o zmenu koreňovej schémy 1.1. Battery Notes a Strážca helper entity sa nepoužívajú ako runtime zdroje. Pri zmene kanonického reportovacieho zdroja sa obnoví jeho availability profil; vzorky a výmenné cykly sa zachovávajú.
+
+GitHub CI teraz používa aj Chromium interakcie panelu: `cd tests/frontend`, `npm ci`, `npx playwright install chromium`, `npm test`. Testuje percentá, hromadné odporúčania, úpravy sledovania, zapnutie signálu a úzke zobrazenie na simulovanom HA rozhraní. Tieto testy nenahrádzajú kontrolu po inštalácii na živom HA.
 
 ## Kompatibilita HA entity/action/event
 

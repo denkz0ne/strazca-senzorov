@@ -4,6 +4,16 @@ Tento návod opisuje aktuálnu verziu z predvolenej vetvy `main`. Projekt zatia�
 
 Navigácia sekcií a vyhľadávanie zostávajú počas rolovania dostupné. Na úzkom displeji možno taby posúvať vodorovne a zoznamy tabuliek majú vlastný posun.
 
+## Aktualizácia opravy 0.1.1
+
+Verzia 0.1.1 opravuje chýbajúce batériové percentá a nesprávne zdroje z pôvodnej verzie. Po HACS aktualizácii a reštarte sa existujúce zdroje prekontrolujú automaticky; zariadenia nemusíš odstraňovať a znovu pridávať. Pred prvou opravou vzniká oddelená interná záloha pôvodných záznamov. Výmeny, typy batérií a explicitné používateľské voľby zostávajú zachované. Staré chybné odporúčanie „iba batéria“ sa pri preukázane nesprávnej väzbe zmení na „batéria aj dostupnosť“; správne ručne nastavený režim ostáva.
+
+V **Prehľade** je percento batérie a signál priamo v tabuľke. Rozbaľ detail pre počty vzoriek, vysvetlenie stavu a zmenu režimu/napájania cez **Uložiť sledovanie**. Chybne batériová sieťová zásuvka sa pri oprave pôvodnej väzby na napätie preklasifikuje na sledovanie dostupnosti zo siete.
+
+Pri vypnutých signálových entitách panel ukáže dôvod a tlačidlo **Zapnúť odporúčané signálové entity**. Zapnutie vyžaduje tvoje potvrdenie a týka sa iba signálových entít daného sledovaného zariadenia. Prvý skutočný LQI/RSSI údaj môže prísť až po obnovení entity zdrojovou integráciou.
+
+Panel obnovuje Prehľad, Batérie a Incidenty približne každých 30 sekúnd. Zachováva rozbalené detaily; počas úpravy formulára neobnovuje aktívne pole. Časy sa zobrazujú lokálne.
+
 ## Čo sa zobrazí po prvom spustení
 
 Panel sa dá používať bez konfigurácie integrácie. Karta **Zariadenia** vyhľadá kandidátov z HA registrov a zobrazí ich návrh sledovania. Samotné objavenie zariadenia ho ešte nezačne sledovať.
@@ -36,6 +46,8 @@ Pri novom vhodnom zariadení sa obnoví jedno natívne upozornenie HA s počtom 
 
 Stav zdravia a pravdepodobná príčina sú samostatné informácie. Strážca používa `initializing`, `healthy`, `degraded`, `stale`, `offline`, `recovering`, `paused` a `unknown`. Presné prahy závisia od naučeného reportovacieho profilu a explicitnej dostupnosti zdroja.
 
+Režim **Iba batéria** má stav `not_monitored` („dostupnosť sa nesleduje“). Pri zariadení bez osobitného connectivity senzora sa používa dostupnosť vybraných pôvodných HA entít. Hodnota `off` pri zásuvke alebo pohybovom senzore znamená dostupnú entitu; `unavailable` je dôkaz nedostupnosti. Kým neexistuje spoľahlivá periodicita, „v poriadku“ znamená dostupný zdroj HA, nie potvrdenie nového rádiového paketu. Panel túto hranicu vysvetľuje.
+
 Príčiny môžu byť `battery`, `connectivity`, `gateway_upstream`, `integration`, `power_or_network` alebo `unknown`. `unknown` znamená, že podklady nestačia alebo si odporujú. Body v diagnostike sú interné dôkazové body, nie percentuálna pravdepodobnosť.
 
 `last_reported` znamená, že integrácia zdrojovej entity zapísala jej stav. Samo osebe nedokazuje, že zariadenie práve vysielalo cez rádio. Ak integrácia publikuje uložený stav, Strážca to nemusí vedieť rozlíšiť bez špecifického adaptéru.
@@ -47,6 +59,10 @@ Príčiny môžu byť `battery`, `connectivity`, `gateway_upstream`, `integratio
 - Skok úrovne batérie môže byť iba kandidát na výmenu. Potvrď výmenu až po fyzickej výmene.
 - Nabitie nabíjateľnej batérie sa neeviduje ako výmena.
 - Pri sieťovom napájaní sa batériové odhady nepoužívajú.
+
+Prudký pokles môže vyvolať upozornenie skôr než vznikne odhad: aspoň 10 percentuálnych bodov za najmenej jeden deň s tempom aspoň 3 body/deň v poslednom týždni. Je to dôvod skontrolovať batériu, nie potvrdenie poruchy ani garantovaný termín vybitia. Aktuálny trend sa počíta iba z aktuálneho výmenného cyklu.
+
+Incidenty a potreba pozornosti batérii vytvárajú jedno natívne HA upozornenie na incident/zariadenie. Výpadok sa opakovane neoznamuje pri každej kontrole a upozornenie sa po stabilnej obnove odstráni. V **Nastaveniach** môžeš natívne upozornenia vypnúť; udalosti pre automatizácie ostávajú aktívne. Existujúce upozornenie môžeš aj ručne zrušiť v HA.
 
 Použi akciu `sensor_guardian.mark_battery_replaced` po výmene, aby sa zaznamenal nový cyklus a voliteľne typ, počet, značka a dôvod. Akcia je idempotentná pre rovnaký záznam výmeny.
 
