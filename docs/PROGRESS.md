@@ -159,6 +159,13 @@ This log records completed work and verification for the staged development plan
 
 ## 2026-10-07 — functional runtime repair (issue #18)
 
+### Follow-up: unchanged live panel and wrong HACS default branch
+
+- A subsequent owner screenshot still showed the old columns, Battery Notes runtime providers and missing percentages after a restart.
+- Read-only HACS inspection established installed and available commit `fd0c0d8`, default/ref `codex/sensor-guardian-mvp`, and no pending update. GitHub repository metadata independently confirmed that same old default branch. The earlier instruction to update from main had not verified the actual repository default.
+- Corrected the GitHub repository default branch to `main` and refreshed HACS repository information through its supported API. Re-read confirmed installed `fd0c0d8`, available `0df65e8`, default/ref `main`, pending update true. The latter commit includes runtime repair 0.1.1.
+- Only repository settings and HACS metadata were changed. The owner still performs the actual integration download/restart; successful code CI and a refreshed update listing do not establish live deployment.
+
 - Owner screenshot shows five tracked devices with no battery percentage and unknown health, including a mains MQTT socket assigned replaceable battery power. Read-only HA inspection confirms native ZHA battery states of 45 % and 100 %, device_class battery, and actual unavailable state on the mains socket. The enabled Guardian integration status does not establish functional correctness.
 - Reproduced five faults before fixing them: GitHub run 37636729066 reported 5 failing regression tests and 76 passing prior tests. Numeric device_class battery was ranked as a binary low flag; localized metadata and helper source selection compounded the fault. Native mains voltage was misclassified and availability ignored actual source states.
 - Native discovery now excludes Battery Notes/Guardian helpers, uses registry/device-class/unit metadata and selects primary source sentinels. Existing legacy bindings are repaired idempotently after a separate pre-repair backup; cycles, samples, assignments and explicit overrides are retained. Broken auto-recommended battery-only bindings are corrected, with editable tracked mode/power available in the panel.

@@ -92,6 +92,8 @@ Ak aktualizácia zlyhá, najprv zachovaj HA zálohu a logy. Vráť predchádzaj�
 
 ## Riešenie problémov
 
+Ak sa po HACS aktualizácii a reštarte zobrazuje pôvodný panel bez stĺpcov Batéria/Signál, over skutočne nainštalovaný commit a vetvu HACS. Dňa 2026-10-07 bolo preukázané, že repository stále malo predvolenú vetvu `codex/sensor-guardian-mvp`; HACS preto ponúkalo znova starý `fd0c0d8`. Predvolená vetva repository bola opravená na `main` a HACS informácie obnovené. HACS následne ponúklo aktualizáciu na `0df65e8` (runtime verzia 0.1.1). Samotné zlúčenie PR nepreukazuje, že HACS stiahlo správny zdroj alebo že HA načítalo nový kód.
+
 1. Over, že priečinok `custom_components/sensor_guardian` obsahuje `manifest.json` a `www/panel.js`.
 2. V **Nastavenia → Systém → Logy** vyhľadaj `sensor_guardian` a skopíruj prvú súvisiacu chybu aj traceback.
 3. Obnov panel a skontroluj, či si v správnej karte. Prázdny **Prehľad** je očakávaný, ak ešte nič nesleduješ.
