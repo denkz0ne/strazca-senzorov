@@ -154,4 +154,9 @@ async def test_setup_repairs_old_numeric_battery_low_binding_and_seeds_samples(
     assert actual["devices"][0]["entity_refs"]["battery_low"] is None
     assert actual["devices"][0]["battery_type"] == "AAA"
     assert actual["samples"][-1]["level_percent"] == 45
+    backup_key = f"sensor_guardian.pre_source_repair.{entry.entry_id}"
+    assert (
+        hass_storage[backup_key]["data"]["devices"][0]["entity_refs"]["battery_level"]
+        is None
+    )
     await hass.config_entries.async_unload(entry.entry_id)

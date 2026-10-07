@@ -343,5 +343,26 @@ async def test_panel_can_track_a_candidate_and_attach_runtime_entities(
     await hass.async_block_till_done()
     assert runtime["data"]["devices"][0]["battery_attention"] is True
     assert len(events) == 1
+    # Editing tracking keeps device history and existing entity IDs.
+    before_ids = {item.entity_id for item in guardian_entities}
+    await client.send_json_auto_id(
+        {
+            "type": "sensor_guardian/update_tracking",
+            "device_id": device.id,
+            "tracking_mode": "battery_and_availability",
+            "power_type": "replaceable_battery",
+        }
+    )
+    response = await client.receive_json()
+    assert response["success"] is True
+    await hass.async_block_till_done()
+    assert runtime["data"]["devices"][0]["tracking_mode"] == "battery_and_availability"
+    assert {
+        item.entity_id
+        for item in er.async_entries_for_config_entry(
+            er.async_get(hass), entry.entry_id
+        )
+    } == before_ids
+    assert runtime["data"]["samples"][-1]["level_percent"] == 10
     await client.close()
     await hass.config_entries.async_unload(entry.entry_id)
