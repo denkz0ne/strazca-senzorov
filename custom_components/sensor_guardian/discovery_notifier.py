@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+
 from homeassistant.components.persistent_notification import async_create, async_dismiss
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.device_registry import EVENT_DEVICE_REGISTRY_UPDATED
