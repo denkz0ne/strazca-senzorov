@@ -7,7 +7,7 @@ export function alertsView(app,data) {
   if(!data.items?.length)page.append(empty("Momentálne tu nie sú upozornenia pre tento výber."));
   for(const item of data.items || []) {
     const panel=card(item.device_count>1?`Spoločný problém · ${item.device_count} zariadení`:item.names?.[0]||"Upozornenie");
-    panel.append(badge(item.closed_at?"Uzavreté":label(item.health_state),item.closed_at?"":"critical"),el("p",`Od ${time(item.opened_at)} · príčina: ${label(item.cause)} · istota: ${label(item.cause_confidence)}`,"muted"));
+    panel.append(badge(item.closed_at?"Uzavreté":label(item.health_state),item.closed_at?"":item.kind==="battery"&&item.severity!=="critical"?"attention":"critical"),el("p",`Od ${time(item.opened_at)} · ${item.kind==="battery"?"batériové varovanie":`príčina: ${label(item.cause)}`} · istota: ${label(item.cause_confidence)}`,"muted"));
     if(item.cause==="unknown")panel.append(el("p","Príčina zostáva neznáma. Dostupné dôkazy nestačia na spoľahlivé rozlíšenie batérie a spojenia."));
     for(const point of item.evidence || [])panel.append(el("p",app.evidenceText(point),"muted"));
     const devices=el("div",null,"actions");
@@ -18,7 +18,7 @@ export function alertsView(app,data) {
       else actions.append(btn("Potvrdiť prečítanie",async()=>{await app.call("acknowledge_alert",{incident_id:item.incident_id});await app.load();}));
       actions.append(btn("Odložiť na hodinu",async()=>{await app.call("acknowledge_alert",{incident_id:item.incident_id,minutes:60});await app.load();}));
       const cause=select("Potvrdiť príčinu",["unknown","battery","connectivity","gateway_upstream","integration","power_or_network"],item.cause||"unknown");
-      actions.append(cause,btn("Potvrdiť príčinu",async()=>{await app.service("confirm_incident_cause",{incident_id:item.incident_id,cause:cause.value});await app.load();}));panel.append(actions);
+      if(item.kind!=="battery")actions.append(cause,btn("Potvrdiť príčinu",async()=>{await app.service("confirm_incident_cause",{incident_id:item.incident_id,cause:cause.value});await app.load();}));panel.append(actions);
       if(item.snoozed_until)panel.append(el("p",`Odložené do ${time(item.snoozed_until)}. Merania sa naďalej zbierajú.`,"muted"));
     }
     page.append(panel);

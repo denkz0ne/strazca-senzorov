@@ -73,7 +73,11 @@ def device_snapshot(
         )
 
     level = number(reading("level_percent", "battery_level"))
+    if level is not None and not 0 <= level <= 100:
+        level = None
     voltage = number(reading("voltage", "voltage"))
+    if voltage is not None and not 0 < voltage <= 100:
+        voltage = None
     low = reading("native_low", "battery_low")
     mode = device.get("tracking_mode", "availability_only")
     powered = device.get("power_type", "unknown")
@@ -307,7 +311,20 @@ def dashboard(
             :12
         ],
         "alerts": alert_rows(data)[:12],
-        "recent": list(reversed(data.get("health_history", [])))[0:12],
+        "recent": [
+            {
+                **row,
+                "name": next(
+                    (
+                        device.get("name")
+                        for device in data["devices"]
+                        if device["device_id"] == row["device_id"]
+                    ),
+                    "Sledované zariadenie",
+                ),
+            }
+            for row in list(reversed(data.get("health_history", [])))[0:12]
+        ],
         "observed_at": now.isoformat(),
     }
 

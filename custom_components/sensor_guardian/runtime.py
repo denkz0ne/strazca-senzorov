@@ -239,6 +239,7 @@ async def async_process_devices(
             device["health_reason"] = "tracking_disabled"
             changed_ids.add(device["device_id"])
             record_health(data, device, now=current)
+            sync_battery_alert(data, device, now=current)
             continue
         previous = device.get("health_state", "unknown")
         profile = next(
@@ -331,6 +332,10 @@ async def async_process_devices(
                 item for item in data["devices"] if item["device_id"] == device_id
             )
             active_ids = device.setdefault("active_incident_ids", [])
+            device["cause"] = incident.get("cause", cause_result["cause"])
+            device["cause_confidence"] = (
+                incident.get("confidence") or cause_result["confidence"]
+            )
             if incident["incident_id"] not in active_ids:
                 active_ids.append(incident["incident_id"])
             if (

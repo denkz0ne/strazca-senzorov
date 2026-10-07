@@ -6,6 +6,7 @@ export const labels = {
   replaceable_battery: "Vymeniteľná batéria", rechargeable: "Nabíjateľné", mains: "Sieťové napájanie",
   critical: "Vyžaduje zásah", attention: "Skontrolovať", watch: "Riziko", learning: "Učí sa", normal: "Bez varovania",
   paused: "Pozastavené", high: "Vysoká", medium: "Stredná", low: "Nízka", none: "Zatiaľ neurčená",
+  battery_attention: "Pozornosť batérii",
   battery: "Batéria", connectivity: "Spojenie", gateway_upstream: "Spoločná brána / sieť",
   integration: "Zdrojová integrácia", power_or_network: "Napájanie alebo sieť", superseded: "Skupina sa zmenila",
 };

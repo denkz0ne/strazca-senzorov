@@ -520,6 +520,12 @@ def register_prevention_commands(hass):
                 if until:
                     incident["snoozed_until"] = until
                 async_dismiss(hass, f"{DOMAIN}_incident_{incident['incident_id']}")
+                if incident.get("kind") == "battery":
+                    for device_id in incident["device_ids"]:
+                        async_dismiss(hass, f"{DOMAIN}_battery_{device_id}")
+                        for device in runtime["data"]["devices"]:
+                            if device["device_id"] == device_id:
+                                device["battery_notice_pending"] = False
         if until:
             for device in runtime["data"]["devices"]:
                 if device["device_id"] in ids:

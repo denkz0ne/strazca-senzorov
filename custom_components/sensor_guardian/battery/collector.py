@@ -18,6 +18,7 @@ from homeassistant.helpers.event import (
 from ..const import DOMAIN
 from ..diagnosis.incidents import sync_battery_alert
 from ..events import BATTERY_ATTENTION_EVENT, event_payload
+from ..history import parse_time
 from ..notification_policy import allowed, battery_notice
 from ..runtime import schedule_device_processing
 from .estimator import estimate_remaining_life
@@ -105,6 +106,9 @@ def _record_current_device(
     ):
         entity_id = refs.get(kind)
         state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
+        replaced = parse_time(device.get("battery_replaced_at"))
+        if state is not None and replaced and state.last_reported < replaced:
+            continue
         if state is None or state.state in {"unknown", "unavailable"}:
             continue
         source_ids.append(entity_id)
