@@ -1,5 +1,5 @@
 {
   "private": true,
-  "scripts": {"test": "node test_runtime_panel.cjs ../../custom_components/sensor_guardian/www/panel.js"},
+  "scripts": {"test": "node test_prevention_panel.cjs ../../custom_components/sensor_guardian/www/panel.js"},
   "devDependencies": {"playwright": "1.62.1"}
 }
