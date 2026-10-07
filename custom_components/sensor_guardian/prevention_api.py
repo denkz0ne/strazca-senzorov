@@ -13,7 +13,12 @@ from homeassistant.helpers import area_registry, device_registry
 
 from . import analytics
 from .const import DOMAIN, VERSION
-from .discovery import _kind, async_discover_devices, display_identifier
+from .discovery import (
+    PRIMARY_DOMAINS,
+    _kind,
+    async_discover_devices,
+    display_identifier,
+)
 from .history import number, stable_id
 from .onboarding import apply_tracking, preview_tracking
 
@@ -657,6 +662,7 @@ def register_prevention_commands(hass):
                     or row.device_id != device["device_id"]
                     or row.disabled_by
                     or row.platform in {"battery_notes", DOMAIN}
+                    or row.domain not in PRIMARY_DOMAINS
                     or (kind != "primary" and source_kind(hass, row) != kind)
                 ):
                     connection.send_error(
@@ -756,4 +762,3 @@ def register_prevention_commands(hass):
         reset_profile,
     ):
         websocket_api.async_register_command(hass, handler)
-

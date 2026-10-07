@@ -398,6 +398,7 @@ def device_detail(
                     "timestamp": row["timestamp"],
                     "state": row["state"],
                     "reason": row.get("reason"),
+                    "provenance": row.get("provenance"),
                 }
                 for row in history
             ],
@@ -412,6 +413,10 @@ def device_detail(
         "sources": {
             "entity_refs": deepcopy(device.get("entity_refs", {})),
             "signals": deepcopy(device.get("signal", [])),
+            "availability_entity": next(
+                iter(device.get("availability_sentinels", [])), None
+            ),
+            "automatic": not bool(device.get("user_overrides", {}).get("entity_refs")),
         },
         "period_days": days,
     }

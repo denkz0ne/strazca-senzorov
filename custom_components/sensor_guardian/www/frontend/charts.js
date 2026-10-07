@@ -43,7 +43,7 @@ export function availabilityHistory(points) {
   if (!points.length) { panel.append(empty("História prechodov sa začne prvým vyhodnotením zariadenia.")); return panel; }
   const names = { healthy:"Dostupné", offline:"Nedostupné", recovering:"Obnovuje sa", stale:"Bez hlásení", degraded:"Zhoršené", initializing:"Inicializácia", not_monitored:"Iba batéria", unknown:"Neznáme" };
   for (const point of points.slice(-20).reverse()) {
-    const line = el("div", null, "device-line"); line.append(el("strong", names[point.state] || point.state), el("span", time(point.timestamp), "muted")); panel.append(line);
+    const line = el("div", null, "device-line"); line.append(el("strong", names[point.state] || point.state), el("span", `${time(point.timestamp)}${point.provenance==="state_at_window_start"?" · posledný známy stav na začiatku obdobia":""}`, "muted")); panel.append(line);
   }
   return panel;
 }

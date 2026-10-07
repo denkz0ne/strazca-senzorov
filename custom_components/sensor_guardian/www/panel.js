@@ -16,6 +16,7 @@ class SensorGuardianPanel extends HTMLElement {
     this.state={route:"overview",query:"",offset:0,days:30,filters:{filter:"all",sort:"risk"},closed:false,onboardingStep:"select"};
     this.selected=new Set();this.candidateChoices=new Map();this.drafts=new Map();this.dirtyKeys=new Set();
     this.loaded=false;this.sequence=0;this.pendingCount=null;this.status="";
+    this.openDetails=new Set();
   }
   set hass(value) {
     this._hass=value;
@@ -69,6 +70,7 @@ class SensorGuardianPanel extends HTMLElement {
   async go(route,options={}){
     if(this.dirtyKeys.size&&!window.confirm("Máš neuložené zmeny. Zahodiť ich a zmeniť sekciu?"))return;
     this.drafts.clear();this.dirtyKeys.clear();
+    this.rememberDetails();
     if(options.state)this.state={...this.state,...options.state,filters:{...options.state.filters}};
     if(route==="detail")this.returnState={...this.state,filters:{...this.state.filters}};
     this.state.route=route;if(!options.state)this.state.offset=0;
@@ -117,9 +119,16 @@ class SensorGuardianPanel extends HTMLElement {
   }
   paint(){
     if(!this.data)return;
+    this.rememberDetails();
+    const active=this.shadowRoot.activeElement,focusKey=active?.dataset.focusKey,focusLabel=active?.getAttribute("aria-label")||active?.textContent?.trim();
     this.updateNav();
     const render=views[this.state.route];this.content.replaceChildren(render(this,this.data));this.updateStatus();
+    if(active&&this.shadowRoot.activeElement!==active){
+      const matches=[...this.content.querySelectorAll("button,input,select")].filter(node=>focusKey?node.dataset.focusKey===focusKey:(node.getAttribute("aria-label")||node.textContent.trim())===focusLabel);
+      if(matches.length===1)matches[0].focus({preventScroll:true});
+    }
   }
+  rememberDetails(){for(const item of this.content?.querySelectorAll("details[data-panel-id]")||[])item.open?this.openDetails.add(item.dataset.panelId):this.openDetails.delete(item.dataset.panelId);}
   evidenceText(point){
     const names={battery_level:"Posledná úroveň batérie",native_battery_low:"Natívne varovanie batérie",rssi_dbm:"RSSI",linkquality:"Kvalita spojenia",signal_trend:"Trend signálu",abnormal_drain:"Neobvyklý úbytok",source_entry_unavailable:"Zdrojová integrácia nedostupná",shared_outage_count:"Zariadenia v spoločnom výpadku"};
     const value=point.value===true?"áno":point.value===false?"nie":String(point.value??"neznáme");

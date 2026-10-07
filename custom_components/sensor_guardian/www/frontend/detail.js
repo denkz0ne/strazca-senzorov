@@ -78,8 +78,18 @@ export function detailView(app, data) {
     inputField(app,form,key,"Počet batérií","number",baseBattery,"battery_quantity",{ min:"1",max:"20" });
     battery.append(form, btn("Uložiť batériu",async()=>{ const value=app.draft(key,baseBattery); await app.call("update_battery",{device_id:id,battery_type:value.battery_type,battery_quantity:Number(value.battery_quantity),power_type:device.power_type==="unknown"?"unknown":device.power_type}); app.clearDraft(key); await app.load(true); })); page.append(battery);
   }
-  const sources=card("Zdroje a kvalita údajov"), advanced=el("details"), summary=el("summary","Pokročilá diagnostika zdrojov"); advanced.append(summary);
+  const sources=card("Zdroje a kvalita údajov"), advanced=el("details"), summary=el("summary","Pokročilá diagnostika zdrojov"); advanced.dataset.panelId=`sources:${id}`;advanced.open=app.openDetails?.has(advanced.dataset.panelId);advanced.append(summary);
   for (const [kind,entity] of Object.entries(data.sources?.entity_refs || {})) if(entity) advanced.append(el("p", `${kind}: ${entity}`, "source-id"));
+  const sourceKey=`sources:${id}`, sourceDraft=app.draft(sourceKey,{entity_refs:{...data.sources?.entity_refs},availability_entity:data.sources?.availability_entity||null}), sourceForm=el("div",null,"form");
+  for(const [name,kind] of [["Percento batérie","battery_level"],["Natívne slabá batéria","battery_low"],["Napätie batérie","voltage"],["Natívne pripojenie","native_availability"]]){
+    const choices=(data.source_choices||[]).filter(row=>row.kind===kind&&!row.disabled).map(row=>[row.entity_id,row.name]);
+    sourceForm.append(select(name,[["","Nepoužiť"],...choices],sourceDraft.entity_refs[kind]||"",value=>{sourceDraft.entity_refs[kind]=value||null;app.markDirty(sourceKey);}));
+  }
+  sourceForm.append(select("Primárna entita dostupnosti",[["","Natívne pripojenie"],...(data.source_choices||[]).filter(row=>!row.disabled).map(row=>[row.entity_id,row.name])],sourceDraft.availability_entity||"",value=>{sourceDraft.availability_entity=value||null;app.markDirty(sourceKey);}));
+  advanced.append(el("p","Mení sa iba to, ktoré pôvodné entity Strážca sleduje. Žiadna entita sa nepremenuje. Neznáma periodicita nie je dôkaz výpadku.","muted"),sourceForm,
+    btn("Uložiť výber zdrojov",async()=>{await app.call("update_sources",{device_id:id,...sourceDraft});app.clearDraft(sourceKey);await app.load(true);}),
+    btn("Použiť automatické zdroje",async()=>{await app.call("update_sources",{device_id:id,automatic:true});app.clearDraft(sourceKey);await app.load(true);}),
+    btn("Začať učenie intervalu nanovo",async()=>{if(!window.confirm("Obnoviť iba naučený interval? Merania a výmeny zostanú."))return;await app.call("reset_report_profile",{device_id:id});await app.load(true);}));
   sources.append(el("p",(device.quality?.missing || []).map(reason).join(" ") || "Zdroje poskytujú potrebné údaje.","muted"),advanced,
     btn("Doplniť dostupnú históriu HA",async()=>{ await app.call("load_native_history"); app.showStatus("História sa načítava na pozadí. Chýbajúce alebo vymazané dáta sa nedopĺňajú odhadom."); }));
   page.append(sources); return page;
