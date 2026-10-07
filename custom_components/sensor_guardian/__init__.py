@@ -26,11 +26,13 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Register integration actions independently of config entry lifecycle."""
     from .discovery_notifier import async_register_discovery_listeners
     from .panel import async_register_panel
+    from .prevention_api import register_prevention_commands
     from .services import async_register_services
     from .websocket_api import async_register_commands
 
     async_register_services(hass)
     async_register_commands(hass)
+    register_prevention_commands(hass)
     async_register_discovery_listeners(hass)
     await async_register_panel(hass)
     return True

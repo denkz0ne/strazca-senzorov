@@ -167,7 +167,8 @@ def device_snapshot(
         **{
             key: deepcopy(device.get(key))
             for key in (
-                "device_id",
+            "device_id",
+            "identifier",
                 "name",
                 "area_id",
                 "area_name",

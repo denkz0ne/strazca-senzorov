@@ -517,6 +517,7 @@ async def async_process_devices(
         )
         fire_event(hass, RECOVERED_EVENT, device, incident=incident)
         async_dismiss(hass, f"{DOMAIN}_incident_{incident_id}")
+    runtime["last_evaluated_at"] = current.isoformat()
 
 
 def _snoozed(device: dict[str, Any], now: datetime) -> bool:
