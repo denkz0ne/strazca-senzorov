@@ -77,6 +77,7 @@ async def test_timer_callbacks_are_event_loop_safe(hass, monkeypatch):
 
     def capture_call_later(_hass, _delay, action):
         callbacks["flush"] = action
+        callbacks["flush_count"] = callbacks.get("flush_count", 0) + 1
         return lambda: None
 
     def capture_interval(_hass, action, _interval):
@@ -92,7 +93,73 @@ async def test_timer_callbacks_are_event_loop_safe(hass, monkeypatch):
 
     runtime = hass.data[DOMAIN][entry.entry_id]
     runtime["schedule_save"]()
+    runtime["schedule_save"]()
 
     assert is_callback(callbacks["flush"])
     assert is_callback(callbacks["periodic"])
+    assert callbacks["flush_count"] == 1
+    await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_setup_repairs_old_numeric_battery_low_binding_and_seeds_samples(
+    hass, hass_storage
+):
+    from homeassistant.helpers import device_registry as dr
+
+    from custom_components.sensor_guardian.models import empty_store_data
+    from custom_components.sensor_guardian.storage import GuardianStorage
+
+    source_entry = MockConfigEntry(domain="zha", data={})
+    source_entry.add_to_hass(hass)
+    device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=source_entry.entry_id,
+        identifiers={("zha", "remote")},
+        name="zb65.stmievac",
+    )
+    source = er.async_get(hass).async_get_or_create(
+        "sensor",
+        "zha",
+        "battery",
+        config_entry=source_entry,
+        device_id=device.id,
+        original_name="Batéria",
+        original_device_class="battery",
+        unit_of_measurement="%",
+    )
+    hass.states.async_set(
+        source.entity_id,
+        "45",
+        {
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+        },
+    )
+    data = empty_store_data()
+    data["devices"].append(
+        {
+            "device_id": device.id,
+            "tracking_mode": "battery_and_availability",
+            "power_type": "replaceable_battery",
+            "entity_refs": {"battery_low": source.entity_id, "battery_level": None},
+            "sentinels": [source.entity_id],
+            "battery_type": "AAA",
+            "battery_quantity": 2,
+        }
+    )
+    entry = MockConfigEntry(domain=DOMAIN, data={}, unique_id="global")
+    entry.add_to_hass(hass)
+    storage = GuardianStorage(hass, entry.entry_id)
+    hass_storage[storage.key] = {"version": 1, "minor_version": 1, "data": data}
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    actual = hass.data[DOMAIN][entry.entry_id]["data"]
+    assert actual["devices"][0]["entity_refs"]["battery_level"] == source.entity_id
+    assert actual["devices"][0]["entity_refs"]["battery_low"] is None
+    assert actual["devices"][0]["battery_type"] == "AAA"
+    assert actual["samples"][-1]["level_percent"] == 45
+    backup_key = f"sensor_guardian.pre_source_repair.{entry.entry_id}"
+    assert (
+        hass_storage[backup_key]["data"]["devices"][0]["entity_refs"]["battery_level"]
+        is None
+    )
     await hass.config_entries.async_unload(entry.entry_id)

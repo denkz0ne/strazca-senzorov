@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from homeassistant.components.persistent_notification import async_create, async_dismiss
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 
 from .availability.engine import evaluate_health
+from .const import DOMAIN
 from .diagnosis.dependencies import build_dependencies, correlated_clusters
 from .diagnosis.incidents import close_incident, open_or_update_incident
 from .diagnosis.scoring import classify_cause, score_evidence
@@ -45,7 +47,10 @@ def _merge_data(runtime: dict[str, Any], updated: dict[str, Any]) -> None:
 
 
 def _evidence_for_device(
-    hass: HomeAssistant, device: dict[str, Any]
+    hass: HomeAssistant,
+    device: dict[str, Any],
+    data: dict[str, Any] | None = None,
+    now: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Collect selected current values only; avoid copying source attributes."""
     evidence: list[dict[str, Any]] = []
@@ -60,10 +65,47 @@ def _evidence_for_device(
             if level is not None:
                 evidence.append({"feature": "battery_level", "value": level})
         low_entity = refs.get("battery_low")
-        if isinstance(low_entity, str) and (state := hass.states.get(low_entity)):
+        if (
+            isinstance(low_entity, str)
+            and (state := hass.states.get(low_entity))
+            and state.state in {"on", "off"}
+        ):
             evidence.append(
                 {"feature": "native_battery_low", "value": state.state == "on"}
             )
+    # Dropout often makes the live battery entity unavailable; preserve the
+    # last usable observation as evidence, with a bounded age, not as live data.
+    if data is not None and device.get("power_type") != "mains":
+        current = now or datetime.now(UTC)
+        known = {item["feature"] for item in evidence}
+        for sample in reversed(data.get("samples", [])):
+            if sample["device_id"] != device["device_id"]:
+                continue
+            try:
+                stamp = datetime.fromisoformat(sample["timestamp"])
+                stamp = stamp.replace(tzinfo=UTC) if stamp.tzinfo is None else stamp
+            except ValueError, TypeError, KeyError:
+                continue
+            if not 0 <= (current - stamp).total_seconds() <= 7 * 86400:
+                continue
+            if set(sample.get("quality_flags", [])).intersection(
+                {"stale", "invalid_percent", "future_timestamp"}
+            ):
+                continue
+            for key, feature in (
+                ("level_percent", "battery_level"),
+                ("native_low", "native_battery_low"),
+            ):
+                if feature not in known and sample.get(key) is not None:
+                    evidence.append(
+                        {
+                            "feature": feature,
+                            "value": sample[key],
+                            "source": "last_usable_sample",
+                            "timestamp": sample["timestamp"],
+                        }
+                    )
+                    known.add(feature)
     for signal in device.get("signal", []):
         if not isinstance(signal, dict) or not isinstance(signal.get("entity_id"), str):
             continue
@@ -109,7 +151,55 @@ def _active_incident(
 
 def _write_entities(runtime: dict[str, Any], device_id: str) -> None:
     for entity in runtime.get("entities", {}).get(device_id, []):
-        entity.async_write_ha_state()
+        if entity.hass is not None and entity.entity_id:
+            entity.async_write_ha_state()
+
+
+def _source_availability(hass: HomeAssistant, device: dict[str, Any]) -> bool | None:
+    """HA source availability, not an assertion about a new radio packet."""
+    ids = list(device.get("availability_sentinels", device.get("sentinels", [])))
+    refs = device.get("entity_refs", {})
+    if "availability_sentinels" not in device:
+        ids.extend(value for value in refs.values() if isinstance(value, str))
+    states = [state for entity_id in set(ids) if (state := hass.states.get(entity_id))]
+    if any(state.state not in {"unknown", "unavailable"} for state in states):
+        return True
+    if states and all(state.state == "unavailable" for state in states):
+        return False
+    return None
+
+
+def _native_availability(hass: HomeAssistant, device: dict[str, Any]) -> bool | None:
+    entity_id = device.get("entity_refs", {}).get("native_availability")
+    if not entity_id:
+        return device.get("native_available")
+    state = hass.states.get(entity_id)
+    if state is None or state.state == "unknown":
+        return None
+    return (
+        True
+        if state.state == "on"
+        else False
+        if state.state in {"off", "unavailable"}
+        else None
+    )
+
+
+@callback
+def schedule_device_processing(hass: HomeAssistant, runtime: dict[str, Any]) -> None:
+    """Coalesce a burst of selected-entity writes into one runtime worker."""
+    if runtime.get("stopping") or not runtime.get("ready", True):
+        return
+    runtime["_process_pending"] = True
+    previous = runtime.get("_process_task")
+    if previous is not None and not previous.done():
+        return
+
+    async def process_pending() -> None:
+        while runtime.pop("_process_pending", False):
+            await async_process_devices(hass, runtime)
+
+    runtime["_process_task"] = hass.async_create_task(process_pending())
 
 
 async def async_process_devices(
@@ -120,10 +210,15 @@ async def async_process_devices(
 ) -> None:
     """Evaluate every tracked device, persist transitions and deduplicate events."""
     current = now or datetime.now(UTC)
+    if runtime.get("stopping"):
+        return
     data = runtime["data"]
     changed_ids: set[str] = set()
     for device in data["devices"]:
         if device.get("tracking_mode") == "ignored":
+            device["health_state"] = "not_monitored"
+            device["health_reason"] = "tracking_disabled"
+            changed_ids.add(device["device_id"])
             continue
         previous = device.get("health_state", "unknown")
         profile = next(
@@ -139,7 +234,8 @@ async def async_process_devices(
             startup_at=runtime["startup_at"],
             last_reported=device.get("last_reported_at"),
             profile=profile,
-            native_available=device.get("native_available"),
+            native_available=_native_availability(hass, device),
+            source_available=_source_availability(hass, device),
             previous_state=previous,
             recovery_started_at=device.get("recovery_started_at"),
             startup_grace=timedelta(
@@ -151,6 +247,8 @@ async def async_process_devices(
                 )
             ),
         )
+        if device.get("tracking_mode") == "battery_only":
+            health = {"state": "not_monitored", "reason": "battery_only_mode"}
         new_state = health["state"]
         if new_state == "recovering" and not device.get("recovery_started_at"):
             device["recovery_started_at"] = current.isoformat()
@@ -178,14 +276,16 @@ async def async_process_devices(
     }
     new_single_incidents: list[tuple[str, str]] = []
     recovery_events: list[tuple[str, str]] = []
+    cancelled_notifications: list[str] = []
     for device in data["devices"]:
         device_id = device["device_id"]
         state = device.get("health_state", "unknown")
-        evidence = _evidence_for_device(hass, device)
+        evidence = _evidence_for_device(hass, device, data, current)
         scoring = score_evidence(evidence)
         cause_result = classify_cause(scoring)
-        device["cause"] = cause_result["cause"]
-        device["cause_confidence"] = cause_result["confidence"]
+        problem = state in {"degraded", "stale", "offline"}
+        device["cause"] = cause_result["cause"] if problem else "unknown"
+        device["cause_confidence"] = cause_result["confidence"] if problem else "none"
         if state in {"degraded", "stale", "offline"}:
             existing = _active_incident(data, [device_id])
             updated, incident = open_or_update_incident(
@@ -210,7 +310,7 @@ async def async_process_devices(
             }:
                 new_single_incidents.append((device_id, incident["incident_id"]))
             changed_ids.add(device_id)
-        elif state == "healthy":
+        elif state in {"healthy", "not_monitored"}:
             incident = _active_incident(data, [device_id])
             if incident is not None:
                 was_notified = incident.get("notification_state") == "sent"
@@ -222,7 +322,12 @@ async def async_process_devices(
                     for item in device.get("active_incident_ids", [])
                     if item != incident["incident_id"]
                 ]
-                if was_notified:
+                if state == "not_monitored":
+                    incident["resolution"] = "monitoring_disabled"
+                    incident["health_state"] = "not_monitored"
+                    incident["notification_state"] = "cancelled"
+                    cancelled_notifications.append(incident["incident_id"])
+                elif was_notified:
                     recovery_events.append((device_id, incident["incident_id"]))
                 changed_ids.add(device_id)
 
@@ -260,11 +365,17 @@ async def async_process_devices(
         }:
             parent_incidents.append((incident["incident_id"], ids))
 
-    active_parent_ids = {cluster["dependency_id"] for cluster in clusters}
+    active_parent_ids = {
+        (cluster["dependency_id"], tuple(sorted(cluster["device_ids"])))
+        for cluster in clusters
+    }
     for incident in data["incidents"]:
         if len(incident.get("device_ids", [])) < 3 or incident.get("closed_at"):
             continue
-        if incident.get("dependency_id") not in active_parent_ids:
+        if (
+            incident.get("dependency_id"),
+            tuple(sorted(incident["device_ids"])),
+        ) not in active_parent_ids:
             was_notified = incident.get("notification_state") == "sent"
             closed = close_incident(incident, now=current)
             incident.clear()
@@ -278,17 +389,32 @@ async def async_process_devices(
                     ),
                     None,
                 )
-                if device is not None:
+                if (
+                    device is not None
+                    and device.get("parent_incident_id") == incident["incident_id"]
+                ):
                     device["parent_incident_id"] = None
                 for child in data["incidents"]:
-                    if child.get("device_ids") == [device_id] and not child.get(
-                        "closed_at"
+                    if (
+                        child.get("device_ids") == [device_id]
+                        and not child.get("closed_at")
+                        and child.get("parent_incident_id") == incident["incident_id"]
                     ):
                         child["parent_incident_id"] = None
             if was_notified:
-                recovery_events.append(
-                    (incident["device_ids"][0], incident["incident_id"])
-                )
+                if not all(
+                    device.get("health_state") == "healthy"
+                    for device in data["devices"]
+                    if device["device_id"] in incident["device_ids"]
+                ):
+                    incident["resolution"] = "membership_changed"
+                    incident["health_state"] = "superseded"
+                    incident["notification_state"] = "cancelled"
+                    cancelled_notifications.append(incident["incident_id"])
+                else:
+                    recovery_events.append(
+                        (incident["device_ids"][0], incident["incident_id"])
+                    )
 
     pending_events: list[tuple[str, str, list[str] | None]] = []
     for device_id, incident_id in new_single_incidents:
@@ -320,6 +446,8 @@ async def async_process_devices(
         _write_entities(runtime, device_id)
     if changed_ids:
         await runtime["storage"].async_save(runtime["data"])
+    for incident_id in cancelled_notifications:
+        async_dismiss(hass, f"{DOMAIN}_incident_{incident_id}")
     for device_id, incident_id, affected_ids in pending_events:
         device = next(
             item
@@ -334,6 +462,27 @@ async def async_process_devices(
         fire_event(
             hass, INCIDENT_EVENT, device, incident=incident, device_ids=affected_ids
         )
+        if data.get("settings", {}).get("notifications_enabled", True):
+            names = [
+                item.get("name") or "Sledované zariadenie"
+                for item in data["devices"]
+                if item["device_id"] in (affected_ids or [device_id])
+            ]
+            cause = {
+                "unknown": "nepotvrdená",
+                "battery": "pravdepodobne batéria",
+                "connectivity": "pravdepodobne spojenie",
+                "gateway_upstream": "pravdepodobne spoločná brána",
+                "integration": "pravdepodobne zdrojová integrácia",
+                "power_or_network": "pravdepodobne napájanie alebo sieť",
+            }.get(incident.get("cause"), "nepotvrdená")
+            async_create(
+                hass,
+                f"{', '.join(names)}: problém dostupnosti. Príčina: {cause}. "
+                "Podrobnosti sú v [Strážcovi senzorov](/sensor_guardian).",
+                title="Strážca senzorov — problém zariadenia",
+                notification_id=f"{DOMAIN}_incident_{incident_id}",
+            )
     for device_id, incident_id in recovery_events:
         device = next(
             item
@@ -346,6 +495,7 @@ async def async_process_devices(
             if item["incident_id"] == incident_id
         )
         fire_event(hass, RECOVERED_EVENT, device, incident=incident)
+        async_dismiss(hass, f"{DOMAIN}_incident_{incident_id}")
 
 
 def _snoozed(device: dict[str, Any], now: datetime) -> bool:

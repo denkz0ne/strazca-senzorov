@@ -15,6 +15,7 @@ def evaluate_health(
     last_reported: datetime | str | None,
     profile: dict[str, Any],
     native_available: bool | None = None,
+    source_available: bool | None = None,
     previous_state: str = "unknown",
     recovery_started_at: datetime | str | None = None,
     startup_grace: timedelta = timedelta(minutes=5),
@@ -33,6 +34,14 @@ def evaluate_health(
         return _recovery_state(
             now, previous_state, recovery_started_at, recovery_stability
         )
+    if source_available is False:
+        return {
+            "state": "initializing" if now - startup_at < startup_grace else "offline",
+            "reason": "startup_grace"
+            if now - startup_at < startup_grace
+            else "source_entities_unavailable",
+            "threshold_seconds": None,
+        }
     if now - startup_at < startup_grace and last_reported is None:
         return {
             "state": "initializing",
@@ -47,6 +56,13 @@ def evaluate_health(
         or not isinstance(p90, (int, float))
         or not isinstance(p95, (int, float))
     ):
+        if source_available is True:
+            result = _recovery_state(
+                now, previous_state, recovery_started_at, recovery_stability
+            )
+            if result["state"] == "healthy":
+                result["reason"] = "source_available_report_pattern_learning"
+            return result
         return {
             "state": "unknown",
             "reason": "report_pattern_not_periodic",

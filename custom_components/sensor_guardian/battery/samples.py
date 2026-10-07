@@ -94,6 +94,8 @@ def should_store_sample(
         ("voltage", voltage_delta),
     ):
         before, after = previous.get(key), sample.get(key)
+        if before is None and after is not None:
+            return True
         if (
             before is not None
             and after is not None

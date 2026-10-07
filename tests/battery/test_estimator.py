@@ -70,3 +70,32 @@ def test_abnormal_drain_compares_against_prior_device_cycle():
     result = estimate_remaining_life(samples([90, 70, 50, 30, 10]), cycles)
     assert result["abnormal_drain"] is True
     assert "abnormal_drain_vs_prior_cycles" in result["reason_codes"]
+
+
+def test_recent_ten_percent_drop_warns_before_enough_history_for_eta():
+    readings = samples([100, 90], step_days=3)
+    result = estimate_remaining_life(
+        readings, [], now=datetime.fromisoformat(readings[-1]["timestamp"])
+    )
+    assert result["remaining_days_range"] is None
+    assert result["abnormal_drain"] is True
+    assert "recent_rapid_drain" in result["reason_codes"]
+
+
+def test_previous_battery_cycles_do_not_contaminate_current_trend():
+    readings = samples([100, 70, 40, 10], step_days=7) + samples(
+        [100, 99], start="2025-02-01T00:00:00+00:00", step_days=3
+    )
+    cycles = [
+        {
+            "cycle_id": "current",
+            "device_id": "d1",
+            "started_at": "2025-02-01T00:00:00+00:00",
+        }
+    ]
+    result = estimate_remaining_life(
+        readings, cycles, now=datetime(2025, 2, 4, tzinfo=UTC)
+    )
+    assert result["remaining_days_range"] is None
+    assert result["sample_count"] == 2
+    assert not result["abnormal_drain"]

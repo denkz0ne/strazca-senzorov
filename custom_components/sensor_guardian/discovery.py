@@ -10,6 +10,17 @@ from typing import Any
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry, entity_registry
 
+EXCLUDED_SOURCE_PLATFORMS = {"battery_notes", "sensor_guardian"}
+PRIMARY_DOMAINS = {
+    "sensor",
+    "binary_sensor",
+    "switch",
+    "light",
+    "climate",
+    "fan",
+    "cover",
+}
+
 
 def display_identifier(name: str | None) -> str:
     """Extract ZB/ZBT label from a friendly name; never use registry IDs."""
@@ -31,11 +42,20 @@ class DiscoveryCandidate:
     suggested_mode: str
     confidence: str
     reasons: tuple[str, ...]
+    sentinels: tuple[str, ...] = ()
+    power_type: str = "unknown"
+    availability_sentinels: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, Any]:
         """Return a JSON-friendly candidate."""
         result = asdict(self)
-        for key in ("signal_entities", "recommended_signal_entities", "reasons"):
+        for key in (
+            "signal_entities",
+            "recommended_signal_entities",
+            "reasons",
+            "sentinels",
+            "availability_sentinels",
+        ):
             result[key] = list(result[key])
         return result
 
@@ -46,11 +66,16 @@ def _kind(entity: Any) -> str | None:
     text = f"{entity.entity_id} {entity.original_name or ''} {entity.unique_id}".lower()
     device_class = getattr(entity, "device_class", None)
     unit = (getattr(entity, "unit_of_measurement", None) or "").lower()
-    if "battery" in text and (domain == "binary_sensor" or device_class == "battery"):
+    battery_named = any(word in text for word in ("battery", "bateria", "batéria"))
+    if domain == "binary_sensor" and (battery_named or device_class == "battery"):
         return "battery_low"
-    if "battery" in text and domain == "sensor" and unit in {"%", "percent"}:
+    if domain == "sensor" and (
+        device_class == "battery" or (battery_named and unit in {"%", "percent"})
+    ):
         return "battery_level"
-    if "voltage" in text or unit in {"v", "mv"}:
+    if domain == "sensor" and (
+        "voltage" in text or unit in {"v", "mv"} or device_class == "voltage"
+    ):
         return "voltage"
     if (
         any(token in text for token in ("rssi", "lqi", "linkquality", "signal"))
@@ -77,12 +102,16 @@ def rank_device_entities(
     recommended: list[str] = []
     reasons: list[str] = []
     sentinel_ids: list[str] = []
-    for entity in entities:
+    entities = [
+        entity
+        for entity in entities
+        if getattr(entity, "platform", None) not in EXCLUDED_SOURCE_PLATFORMS
+    ]
+    for entity in sorted(entities, key=lambda item: item.entity_id):
         kind = _kind(entity)
         if kind is None:
             continue
         if kind == "signal":
-            sentinel_ids.append(entity.entity_id)
             (recommended if getattr(entity, "disabled_by", None) else signals).append(
                 entity.entity_id
             )
@@ -91,9 +120,66 @@ def rank_device_entities(
             continue
         if refs[kind] is None:
             refs[kind] = entity.entity_id
-        sentinel_ids.append(entity.entity_id)
+    # Mains voltage is not a battery. Voltage-only battery sources require a
+    # battery-specific identity; companion voltage is accepted with native battery data.
+    voltage = next(
+        (entity for entity in entities if entity.entity_id == refs["voltage"]), None
+    )
+    if (
+        voltage
+        and not (refs["battery_level"] or refs["battery_low"])
+        and not any(
+            token in f"{voltage.entity_id} {voltage.original_name or ''}".lower()
+            for token in ("battery", "bateria", "batéria")
+        )
+    ):
+        refs["voltage"] = None
+    primary = [
+        entity
+        for entity in sorted(entities, key=lambda item: item.entity_id)
+        if not getattr(entity, "disabled_by", None)
+        and entity.domain in PRIMARY_DOMAINS
+        and _kind(entity) != "signal"
+    ]
+    sentinel_ids = list(
+        dict.fromkeys(
+            [value for value in refs.values() if value]
+            + [entity.entity_id for entity in primary]
+        )
+    )[:3]
     has_battery = any(refs[key] for key in ("battery_level", "battery_low", "voltage"))
-    has_availability = refs["native_availability"] is not None or bool(signals)
+    mains = not has_battery and any(
+        entity.domain in {"switch", "light", "climate", "fan", "cover"}
+        or (getattr(entity, "unit_of_measurement", None) or "").lower() in {"w", "kwh"}
+        for entity in primary
+    )
+    controls = [
+        entity.entity_id
+        for entity in primary
+        if entity.domain in {"switch", "light", "climate", "fan", "cover"}
+    ]
+    measurements = [entity.entity_id for entity in primary if _kind(entity) is None]
+    preferred = (
+        [refs["native_availability"]]
+        if refs["native_availability"]
+        else controls
+        or measurements
+        or [value for value in refs.values() if value]
+        or signals
+    )
+    availability_sentinels = preferred[:1]
+    sentinel_ids = list(
+        dict.fromkeys(
+            availability_sentinels
+            + controls
+            + [value for value in refs.values() if value]
+            + [entity.entity_id for entity in primary]
+            + signals
+        )
+    )[:3]
+    has_availability = (
+        has_battery or mains or refs["native_availability"] is not None or bool(signals)
+    )
     if has_battery and has_availability:
         mode, confidence = "battery_and_availability", "high"
     elif has_battery:
@@ -124,6 +210,9 @@ def rank_device_entities(
         mode,
         confidence,
         tuple(reasons),
+        tuple(sentinel_ids),
+        "replaceable_battery" if has_battery else "mains" if mains else "unknown",
+        tuple(availability_sentinels),
     )
 
 
@@ -137,8 +226,10 @@ async def async_discover_devices(
     tracked, dismissed = tracked_device_ids or set(), dismissed_device_ids or set()
     devices, entities = device_registry.async_get(hass), entity_registry.async_get(hass)
     by_device: dict[str, list[Any]] = {}
+    native_rows: dict[str, list[Any]] = {}
     for entity in entities.entities.values():
-        if entity.device_id:
+        if entity.device_id and entity.platform not in EXCLUDED_SOURCE_PLATFORMS:
+            native_rows.setdefault(entity.device_id, []).append(entity)
             state = hass.states.get(entity.entity_id)
             attributes = state.attributes if state is not None else {}
             by_device.setdefault(entity.device_id, []).append(
@@ -148,11 +239,13 @@ async def async_discover_devices(
                     original_name=entity.original_name,
                     unique_id=entity.unique_id,
                     disabled_by=entity.disabled_by,
+                    platform=entity.platform,
                     device_class=(
                         getattr(entity, "original_device_class", None)
                         or attributes.get("device_class")
                     ),
-                    unit_of_measurement=attributes.get("unit_of_measurement"),
+                    unit_of_measurement=attributes.get("unit_of_measurement")
+                    or getattr(entity, "unit_of_measurement", None),
                 )
             )
     result: list[dict[str, Any]] = []
@@ -174,8 +267,16 @@ async def async_discover_devices(
             source_row = next(
                 (
                     entity
-                    for entity in entities.entities.values()
-                    if entity.device_id == device.id and not entity.disabled_by
+                    for entity in sorted(
+                        native_rows.get(device.id, []),
+                        key=lambda entity: (
+                            entity.config_entry_id not in device.config_entries,
+                            entity.entity_id
+                            != candidate.entity_refs.get("battery_level"),
+                            entity.entity_id,
+                        ),
+                    )
+                    if not entity.disabled_by
                 ),
                 None,
             )
@@ -208,7 +309,8 @@ async def async_discover_devices(
                         if config_entry
                         else (source_row.platform if source_row else "unknown")
                     ),
-                    "power_type": "unknown",
+                    "power_type": candidate.power_type,
+                    "config_entry_id": config_entry_id,
                     "has_battery_data": any(
                         row["entity_refs"].get(key)
                         for key in ("battery_level", "battery_low", "voltage")
@@ -222,5 +324,20 @@ async def async_discover_devices(
             row["availability_state"] = (
                 availability_state.state if availability_state else "unknown"
             )
+            if availability_state is None:
+                source_states = [
+                    state
+                    for entity_id in candidate.sentinels
+                    if (state := hass.states.get(entity_id))
+                ]
+                if any(
+                    state.state not in {"unknown", "unavailable"}
+                    for state in source_states
+                ):
+                    row["availability_state"] = "available"
+                elif source_states and all(
+                    state.state == "unavailable" for state in source_states
+                ):
+                    row["availability_state"] = "unavailable"
             result.append(row)
     return result

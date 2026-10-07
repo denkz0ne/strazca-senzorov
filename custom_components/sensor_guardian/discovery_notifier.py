@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from homeassistant.components.persistent_notification import async_create, async_dismiss
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.device_registry import EVENT_DEVICE_REGISTRY_UPDATED
@@ -51,10 +53,27 @@ async def async_refresh_discovery_notice(hass: HomeAssistant) -> int:
 
 def async_register_discovery_listeners(hass: HomeAssistant) -> None:
     """Recalculate after device pairing updates either HA registry."""
+    pending_task = None
+    dirty = False
 
     @callback
     def registry_changed(_event: Event) -> None:
-        hass.async_create_task(async_refresh_discovery_notice(hass))
+        nonlocal pending_task, dirty
+        dirty = True
+        if pending_task is not None and not pending_task.done():
+            return
+
+        async def refresh() -> None:
+            nonlocal dirty
+            while dirty:
+                dirty = False
+                await asyncio.sleep(0)
+                for runtime in list(hass.data.get(DOMAIN, {}).values()):
+                    if isinstance(runtime, dict) and runtime.get("reconcile_sources"):
+                        await runtime["reconcile_sources"]()
+                await async_refresh_discovery_notice(hass)
+
+        pending_task = hass.async_create_task(refresh())
 
     hass.bus.async_listen(EVENT_DEVICE_REGISTRY_UPDATED, registry_changed)
     hass.bus.async_listen(EVENT_ENTITY_REGISTRY_UPDATED, registry_changed)

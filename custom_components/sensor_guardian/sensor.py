@@ -19,6 +19,7 @@ STATUS_OPTIONS = [
     "recovering",
     "paused",
     "unknown",
+    "not_monitored",
 ]
 
 

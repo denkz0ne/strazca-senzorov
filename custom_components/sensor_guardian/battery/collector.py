@@ -8,14 +8,16 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from homeassistant.components.persistent_notification import async_create, async_dismiss
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_state_report_event,
 )
 
+from ..const import DOMAIN
 from ..events import BATTERY_ATTENTION_EVENT, event_payload
-from ..runtime import async_process_devices
+from ..runtime import schedule_device_processing
 from .estimator import estimate_remaining_life
 from .samples import normalize_reading, should_store_sample
 
@@ -186,7 +188,20 @@ def _record_current_device(
         payload["battery_level"] = current_level
         payload["remaining_days_range"] = estimate.get("remaining_days_range")
         hass.bus.async_fire(BATTERY_ATTENTION_EVENT, payload)
+        if settings.get("notifications_enabled", True):
+            name = device.get("name") or "Sledované zariadenie"
+            level_text = current_level if current_level is not None else "neznáma"
+            async_create(
+                hass,
+                f"{name}: batéria vyžaduje pozornosť. Úroveň: {level_text} %. "
+                "Podrobnosti sú v [Strážcovi senzorov](/sensor_guardian).",
+                title="Strážca senzorov — batéria",
+                notification_id=f"{DOMAIN}_battery_{device_id}",
+            )
+    elif previous_attention and not device["battery_attention"]:
+        async_dismiss(hass, f"{DOMAIN}_battery_{device_id}")
     for entity in runtime.get("entities", {}).get(device_id, []):
-        entity.async_write_ha_state()
+        if entity.hass is not None and entity.entity_id:
+            entity.async_write_ha_state()
     runtime.get("schedule_save", lambda: None)()
-    hass.async_create_task(async_process_devices(hass, runtime))
+    schedule_device_processing(hass, runtime)

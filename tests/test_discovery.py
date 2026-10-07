@@ -54,8 +54,8 @@ def test_event_only_candidate_with_unknown_type_is_not_forced():
 def test_battery_only_candidate_and_manual_dismissal_data_shape():
     candidate = rank_device_entities("d3", [entity("sensor.sensor_battery", unit="%")])
     assert candidate is not None
-    assert candidate.suggested_mode == "battery_only"
-    assert candidate.confidence == "medium"
+    assert candidate.suggested_mode == "battery_and_availability"
+    assert candidate.confidence == "high"
 
 
 def test_friendly_identifier_is_name_only_and_accepts_zb_and_zbt_patterns():
@@ -64,6 +64,49 @@ def test_friendly_identifier_is_name_only_and_accepts_zb_and_zbt_patterns():
     assert display_identifier("ZB123 entry") == "ZB123"
     assert display_identifier("registry-5a4d") == ""
     assert display_identifier("device ZB1234") == ""
+
+
+def test_native_percentage_device_class_is_never_a_binary_low_flag():
+    for entity_id in ("sensor.remote_battery", "sensor.detektor_bateria"):
+        candidate = rank_device_entities(
+            "d1", [entity(entity_id, unit="%", device_class="battery")]
+        )
+        assert candidate.entity_refs["battery_level"] == entity_id
+        assert candidate.entity_refs["battery_low"] is None
+
+
+def test_runtime_sources_exclude_battery_notes_and_guardian_helpers():
+    helper = entity("sensor.battery_plus", unit="%", device_class="battery")
+    helper.platform = "battery_notes"
+    guardian = entity("binary_sensor.guardian_battery_attention", "binary_sensor")
+    guardian.platform = "sensor_guardian"
+    native = entity("sensor.bateria", unit="%", device_class="battery")
+    native.platform = "zha"
+    candidate = rank_device_entities("d1", [helper, guardian, native])
+    assert candidate.entity_refs["battery_level"] == "sensor.bateria"
+    assert candidate.entity_refs["battery_low"] is None
+
+
+def test_mains_voltage_and_switch_are_availability_not_battery_evidence():
+    voltage = entity("sensor.socket_voltage", unit="V", device_class="voltage")
+    voltage.platform = "mqtt"
+    switch = entity("switch.socket", domain="switch")
+    switch.platform = "mqtt"
+    candidate = rank_device_entities("d1", [voltage, switch])
+    assert candidate.suggested_mode == "availability_only"
+    assert candidate.entity_refs["voltage"] is None
+
+
+def test_mains_primary_actuator_is_selected_ahead_of_energy_telemetry():
+    rows = [
+        entity("sensor.energy", unit="kWh"),
+        entity("sensor.power", unit="W"),
+        entity("sensor.voltage", unit="V"),
+        entity("switch.socket", domain="switch"),
+    ]
+    candidate = rank_device_entities("socket", rows)
+    assert "switch.socket" in candidate.sentinels
+    assert candidate.availability_sentinels == ("switch.socket",)
 
 
 async def test_discovery_uses_friendly_registry_metadata_and_hides_resolved_devices(

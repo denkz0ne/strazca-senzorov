@@ -81,3 +81,34 @@ def test_native_availability_and_recovery_window_have_precedence():
         recovery_started_at=NOW - timedelta(minutes=3),
     )
     assert healthy["state"] == "healthy"
+
+
+async def test_source_state_availability_without_a_periodic_report_profile(hass):
+    from unittest.mock import AsyncMock
+
+    from custom_components.sensor_guardian.models import empty_store_data
+    from custom_components.sensor_guardian.runtime import async_process_devices
+
+    data = empty_store_data()
+    data["devices"].append(
+        {
+            "device_id": "socket",
+            "tracking_mode": "availability_only",
+            "power_type": "mains",
+            "sentinels": ["switch.socket"],
+            "entity_refs": {},
+        }
+    )
+    runtime = {
+        "data": data,
+        "startup_at": NOW - timedelta(days=1),
+        "storage": type("Storage", (), {"async_save": AsyncMock()})(),
+    }
+    # A switched-off socket still communicates; off is not offline.
+    hass.states.async_set("switch.socket", "off")
+    await async_process_devices(hass, runtime, now=NOW)
+    assert data["devices"][0]["health_state"] == "healthy"
+    hass.states.async_set("switch.socket", "unavailable")
+    await async_process_devices(hass, runtime, now=NOW)
+    assert data["devices"][0]["health_state"] == "offline"
+    assert data["devices"][0]["cause"] == "unknown"

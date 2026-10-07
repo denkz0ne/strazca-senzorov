@@ -38,3 +38,19 @@ def test_sample_retention_keeps_transitions_deltas_and_daily_checkpoints():
     assert should_store_sample(old, {**old, "level_percent": 78})
     assert should_store_sample(old, {**old, "native_low": True})
     assert should_store_sample(old, {**old, "timestamp": "2025-01-02T00:00:00+00:00"})
+
+
+def test_first_numeric_reading_after_binding_repair_is_retained_immediately():
+    old = {
+        "timestamp": "2025-01-01T00:00:00+00:00",
+        "level_percent": None,
+        "voltage": None,
+        "native_low": False,
+    }
+    repaired = {
+        **old,
+        "timestamp": "2025-01-01T01:00:00+00:00",
+        "level_percent": 45,
+        "native_low": None,
+    }
+    assert should_store_sample(old, repaired)

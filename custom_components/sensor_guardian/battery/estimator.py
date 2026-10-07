@@ -37,6 +37,7 @@ def _trend(samples: list[dict[str, Any]]) -> tuple[float | None, float]:
         ):
             points.append((stamp.timestamp(), float(level)))
     points.sort()
+    points = points[-120:]
     span = (points[-1][0] - points[0][0]) / 86400 if len(points) > 1 else 0
     rates = [
         (left[1] - right[1]) / ((right[0] - left[0]) / 86400)
@@ -56,17 +57,37 @@ def estimate_remaining_life(
 ) -> dict[str, Any]:
     """Return a range only when current samples or device history justify one."""
     current = now or datetime.now(UTC)
+    current_cycle = next(
+        (cycle for cycle in reversed(cycles) if not cycle.get("ended_at")), None
+    )
+    cycle_start = _date(current_cycle.get("started_at")) if current_cycle else None
     valid = [
         sample
         for sample in samples
         if _date(sample.get("timestamp"))
         and isinstance(sample.get("level_percent"), (int, float))
+        and (cycle_start is None or _date(sample["timestamp"]) >= cycle_start)
     ]
     valid.sort(key=lambda sample: _date(sample["timestamp"]) or current)
     if not valid:
         return _unknown("no_valid_samples")
     last_level = float(valid[-1]["level_percent"])
     rate, span = _trend(valid)
+    recent = [
+        sample
+        for sample in valid
+        if 0 <= (current - _date(sample["timestamp"])).total_seconds() / 86400 <= 7
+        and not set(sample.get("quality_flags", [])).intersection(
+            {"stale", "invalid_percent", "future_timestamp", "aggregated_statistics"}
+        )
+    ]
+    rapid_drain = False
+    if len(recent) >= 2:
+        recent_span = (
+            _date(recent[-1]["timestamp"]) - _date(recent[0]["timestamp"])
+        ).total_seconds() / 86400
+        drop = float(recent[0]["level_percent"]) - float(recent[-1]["level_percent"])
+        rapid_drain = recent_span >= 1 and drop >= 10 and drop / recent_span >= 3
     days = [
         (_date(cycle.get("ended_at")) - _date(cycle.get("started_at"))).total_seconds()
         / 86400
@@ -76,9 +97,6 @@ def estimate_remaining_life(
         and _date(cycle.get("ended_at")) > _date(cycle.get("started_at"))
     ]
     history_days = median(days) if days else None
-    current_cycle = next(
-        (cycle for cycle in reversed(cycles) if not cycle.get("ended_at")), None
-    )
     age = None
     if current_cycle and _date(current_cycle.get("started_at")):
         age = max(
@@ -119,8 +137,13 @@ def estimate_remaining_life(
         result = _unknown("insufficient_history")
         result["sample_count"] = len(valid)
         result["span_days"] = round(span, 1)
+        result["abnormal_drain"] = rapid_drain
+        if rapid_drain:
+            result["reason_codes"].append("recent_rapid_drain")
         return result
-    abnormal = False
+    abnormal = rapid_drain
+    if rapid_drain:
+        reason_codes.append("recent_rapid_drain")
     previous_rates = [
         (float(cycle["initial_level"]) - float(cycle["final_level"])) / duration
         for cycle in cycles

@@ -4,6 +4,20 @@ Changes are recorded here for tagged releases. There is no published release yet
 
 ## Unreleased — MVP development
 
+### 0.1.1 — native runtime data repair
+
+- Correct numeric/localized battery classification and exclude Battery Notes/Guardian helpers from runtime sources.
+- Repair old bindings with a separate pre-repair backup; retain battery assignments, cycles and explicit user choices.
+- Use native source availability without confusing switch off with offline; expose intentional battery-only availability as not monitored.
+- Correct mains-voltage classification and bulk per-device recommendations.
+- Add tracked mode/power editing, explicit signal enabling, redacted diagnostics, sample/report counts, live panel refresh and local dates.
+- Coalesce report evaluation/registry updates, learn from one cadence source, bound trend work and flush storage under continuous reports.
+- Deliver deduplicated native incident/battery notifications with recovery/replacement dismissal and a notification setting.
+- Warn on rapid recent drain before enough history exists for an ETA; separate current-cycle trend from previous battery cycles.
+- Add Chromium interaction checks and runtime/API regression coverage. Owner HAOS update and live checks remain required.
+
+### 0.1.0 — MVP baseline
+
 - Refresh project status, HAOS/HACS update instructions and the log hotfix report after PR #15 merged to `main`.
 - Add a complete Slovak user guide, developer guide and documentation/versioning policy.
 - Add a pull request checklist to keep documentation, changelog, manifest version and hotfix evidence in step with code.
