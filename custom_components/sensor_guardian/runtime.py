@@ -13,7 +13,11 @@ from .analytics import signal_trend
 from .availability.engine import evaluate_health
 from .const import DOMAIN
 from .diagnosis.dependencies import build_dependencies, correlated_clusters
-from .diagnosis.incidents import close_incident, open_or_update_incident
+from .diagnosis.incidents import (
+    close_incident,
+    open_or_update_incident,
+    sync_battery_alert,
+)
 from .diagnosis.scoring import classify_cause, score_evidence
 from .events import (
     INCIDENT_EVENT,
@@ -158,6 +162,7 @@ def _active_incident(
             for incident in data["incidents"]
             if set(incident.get("device_ids", [])) == wanted
             and not incident.get("closed_at")
+            and incident.get("kind", "availability") == "availability"
         ),
         None,
     )
@@ -276,6 +281,8 @@ async def async_process_devices(
             changed_ids.add(device["device_id"])
         if record_health(data, device, now=current):
             changed_ids.add(device["device_id"])
+        if not device.get("battery_attention"):
+            sync_battery_alert(data, device, now=current)
 
     last_prune = runtime.get("last_history_prune")
     if last_prune is None or current - last_prune >= timedelta(days=1):
@@ -384,8 +391,10 @@ async def async_process_devices(
             )
             device["parent_incident_id"] = incident["incident_id"]
             for child in data["incidents"]:
-                if child.get("device_ids") == [device_id] and not child.get(
-                    "closed_at"
+                if (
+                    child.get("kind", "availability") == "availability"
+                    and child.get("device_ids") == [device_id]
+                    and not child.get("closed_at")
                 ):
                     child["parent_incident_id"] = incident["incident_id"]
             changed_ids.add(device_id)
@@ -433,7 +442,8 @@ async def async_process_devices(
                     device["parent_incident_id"] = None
                 for child in data["incidents"]:
                     if (
-                        child.get("device_ids") == [device_id]
+                        child.get("kind", "availability") == "availability"
+                        and child.get("device_ids") == [device_id]
                         and not child.get("closed_at")
                         and child.get("parent_incident_id") == incident["incident_id"]
                     ):

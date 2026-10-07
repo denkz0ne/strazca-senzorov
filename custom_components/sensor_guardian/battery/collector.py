@@ -16,6 +16,7 @@ from homeassistant.helpers.event import (
 )
 
 from ..const import DOMAIN
+from ..diagnosis.incidents import sync_battery_alert
 from ..events import BATTERY_ATTENTION_EVENT, event_payload
 from ..notification_policy import allowed, battery_notice
 from ..runtime import schedule_device_processing
@@ -186,7 +187,15 @@ def _record_current_device(
         or replace_soon
         or bool(estimate.get("abnormal_drain"))
     )
-    if device["battery_attention"] and not previous_attention:
+    escalated = sync_battery_alert(
+        data,
+        device,
+        now=datetime.now(UTC),
+        level=current_level,
+        native_low=sample.get("native_low"),
+        estimate=estimate,
+    )
+    if device["battery_attention"] and (not previous_attention or escalated):
         payload = event_payload(device)
         payload["battery_level"] = current_level
         payload["remaining_days_range"] = estimate.get("remaining_days_range")

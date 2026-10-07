@@ -236,6 +236,8 @@ def alert_rows(data: dict, *, include_closed: bool = False) -> list:
                     key: deepcopy(row.get(key))
                     for key in (
                         "incident_id",
+                        "kind",
+                        "severity",
                         "device_ids",
                         "opened_at",
                         "updated_at",
