@@ -109,24 +109,40 @@ async def test_setup_repairs_old_numeric_battery_low_binding_and_seeds_samples(
     source_entry = MockConfigEntry(domain="zha", data={})
     source_entry.add_to_hass(hass)
     device = dr.async_get(hass).async_get_or_create(
-        config_entry_id=source_entry.entry_id, identifiers={("zha", "remote")},
+        config_entry_id=source_entry.entry_id,
+        identifiers={("zha", "remote")},
         name="zb65.stmievac",
     )
     source = er.async_get(hass).async_get_or_create(
-        "sensor", "zha", "battery", config_entry=source_entry,
-        device_id=device.id, original_name="Batéria",
-        original_device_class="battery", unit_of_measurement="%",
+        "sensor",
+        "zha",
+        "battery",
+        config_entry=source_entry,
+        device_id=device.id,
+        original_name="Batéria",
+        original_device_class="battery",
+        unit_of_measurement="%",
     )
-    hass.states.async_set(source.entity_id, "45", {
-        "unit_of_measurement": "%", "device_class": "battery",
-    })
+    hass.states.async_set(
+        source.entity_id,
+        "45",
+        {
+            "unit_of_measurement": "%",
+            "device_class": "battery",
+        },
+    )
     data = empty_store_data()
-    data["devices"].append({
-        "device_id": device.id, "tracking_mode": "battery_and_availability",
-        "power_type": "replaceable_battery",
-        "entity_refs": {"battery_low": source.entity_id, "battery_level": None},
-        "sentinels": [source.entity_id], "battery_type": "AAA", "battery_quantity": 2,
-    })
+    data["devices"].append(
+        {
+            "device_id": device.id,
+            "tracking_mode": "battery_and_availability",
+            "power_type": "replaceable_battery",
+            "entity_refs": {"battery_low": source.entity_id, "battery_level": None},
+            "sentinels": [source.entity_id],
+            "battery_type": "AAA",
+            "battery_quantity": 2,
+        }
+    )
     entry = MockConfigEntry(domain=DOMAIN, data={}, unique_id="global")
     entry.add_to_hass(hass)
     storage = GuardianStorage(hass, entry.entry_id)

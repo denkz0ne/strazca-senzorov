@@ -85,16 +85,23 @@ def test_native_availability_and_recovery_window_have_precedence():
 
 async def test_source_state_availability_without_a_periodic_report_profile(hass):
     from unittest.mock import AsyncMock
+
     from custom_components.sensor_guardian.models import empty_store_data
     from custom_components.sensor_guardian.runtime import async_process_devices
 
     data = empty_store_data()
-    data["devices"].append({
-        "device_id": "socket", "tracking_mode": "availability_only",
-        "power_type": "mains", "sentinels": ["switch.socket"], "entity_refs": {},
-    })
+    data["devices"].append(
+        {
+            "device_id": "socket",
+            "tracking_mode": "availability_only",
+            "power_type": "mains",
+            "sentinels": ["switch.socket"],
+            "entity_refs": {},
+        }
+    )
     runtime = {
-        "data": data, "startup_at": NOW - timedelta(days=1),
+        "data": data,
+        "startup_at": NOW - timedelta(days=1),
         "storage": type("Storage", (), {"async_save": AsyncMock()})(),
     }
     # A switched-off socket still communicates; off is not offline.
