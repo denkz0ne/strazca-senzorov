@@ -5,10 +5,12 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from homeassistant.components.persistent_notification import async_create, async_dismiss
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 
 from .availability.engine import evaluate_health
+from .const import DOMAIN
 from .diagnosis.dependencies import build_dependencies, correlated_clusters
 from .diagnosis.incidents import close_incident, open_or_update_incident
 from .diagnosis.scoring import classify_cause, score_evidence
@@ -386,6 +388,27 @@ async def async_process_devices(
         fire_event(
             hass, INCIDENT_EVENT, device, incident=incident, device_ids=affected_ids
         )
+        if data.get("settings", {}).get("notifications_enabled", True):
+            names = [
+                item.get("name") or "Sledované zariadenie"
+                for item in data["devices"]
+                if item["device_id"] in (affected_ids or [device_id])
+            ]
+            cause = {
+                "unknown": "nepotvrdená",
+                "battery": "pravdepodobne batéria",
+                "connectivity": "pravdepodobne spojenie",
+                "gateway_upstream": "pravdepodobne spoločná brána",
+                "integration": "pravdepodobne zdrojová integrácia",
+                "power_or_network": "pravdepodobne napájanie alebo sieť",
+            }.get(incident.get("cause"), "nepotvrdená")
+            async_create(
+                hass,
+                f"{', '.join(names)}: problém dostupnosti. Príčina: {cause}. "
+                "Podrobnosti sú v [Strážcovi senzorov](/sensor_guardian).",
+                title="Strážca senzorov — problém zariadenia",
+                notification_id=f"{DOMAIN}_incident_{incident_id}",
+            )
     for device_id, incident_id in recovery_events:
         device = next(
             item
@@ -398,6 +421,7 @@ async def async_process_devices(
             if item["incident_id"] == incident_id
         )
         fire_event(hass, RECOVERED_EVENT, device, incident=incident)
+        async_dismiss(hass, f"{DOMAIN}_incident_{incident_id}")
 
 
 def _snoozed(device: dict[str, Any], now: datetime) -> bool:

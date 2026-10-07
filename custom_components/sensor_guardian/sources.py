@@ -25,6 +25,10 @@ def apply_source_candidate(device: dict[str, Any], candidate: dict[str, Any]) ->
     broken_low = old_refs.get("battery_low") == refs.get("battery_level") and bool(
         refs.get("battery_level")
     )
+    derived_source = device.get("source_integration") in {
+        "battery_notes",
+        "sensor_guardian",
+    }
     if not overrides.get("entity_refs"):
         device["entity_refs"] = dict(refs)
         device["sentinels"] = list(candidate["sentinels"])
@@ -49,7 +53,9 @@ def apply_source_candidate(device: dict[str, Any], candidate: dict[str, Any]) ->
     }.get(candidate["source_integration"], "unknown")
     device["source_status"] = "native"
     if legacy and not overrides.get("tracking_mode"):
-        if broken_low and device.get("tracking_mode") == "battery_only":
+        if (broken_low or derived_source) and device.get(
+            "tracking_mode"
+        ) == "battery_only":
             device["tracking_mode"] = "battery_and_availability"
         elif (
             old_refs.get("voltage")

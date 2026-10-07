@@ -37,7 +37,7 @@ async def test_one_outage_notification_then_dismissal_after_stable_recovery(
     )
     create.assert_called_once()
     assert "Zásuvka SERVER" in create.call_args.args[1]
-    assert "unknown" in create.call_args.args[1]
+    assert "nepotvrdená" in create.call_args.args[1]
     hass.states.async_set("switch.socket", "off")
     await runtime_module.async_process_devices(
         hass, runtime, now=now + timedelta(seconds=2)

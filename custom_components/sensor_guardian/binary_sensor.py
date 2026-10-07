@@ -104,3 +104,9 @@ class GuardianBatteryAttention(_GuardianBinarySensor):
     @property
     def is_on(self) -> bool:
         return bool(self.device.get("battery_attention", False))
+
+    @property
+    def available(self) -> bool:
+        return self.device.get("power_type") != "mains" and self.device.get(
+            "tracking_mode"
+        ) in {"battery_only", "battery_and_availability"}

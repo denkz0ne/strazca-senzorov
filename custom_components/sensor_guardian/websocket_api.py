@@ -111,6 +111,7 @@ INCIDENT_FIELDS = (
     "parent_incident_id",
 )
 SETTING_FIELDS = {
+    "notifications_enabled",
     "startup_grace_minutes",
     "low_battery_threshold",
     "replacement_warning_days",
@@ -779,6 +780,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
         {
             vol.Required("type"): f"{DOMAIN}/update_settings",
             vol.Required("values"): {
+                vol.Optional("notifications_enabled"): bool,
                 vol.Optional("startup_grace_minutes"): vol.All(
                     vol.Coerce(int), vol.Range(min=0, max=1440)
                 ),

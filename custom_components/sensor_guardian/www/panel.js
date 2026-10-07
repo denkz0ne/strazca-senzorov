@@ -395,9 +395,11 @@ class SensorGuardianPanel extends HTMLElement {
     grace.type = "number";
     grace.min = "0";
     grace.max = "1440";
-    grace.value = String(settings.startup_grace_minutes ?? 15);
+    grace.value = String(settings.startup_grace_minutes ?? 5);
     grace.setAttribute("aria-label", "Úvodná tolerancia v minútach");
     actions.append(grace);
+    const notifications = this.select(actions, "Upozornenia v Home Assistant", ["enabled", "disabled"]);
+    notifications.value = settings.notifications_enabled === false ? "disabled" : "enabled";
     const warning = document.createElement("input");
     warning.type = "number";
     warning.min = "1";
@@ -409,6 +411,7 @@ class SensorGuardianPanel extends HTMLElement {
     this.button(actions, "Uložiť nastavenia", async () => {
       await this.command({ type: "sensor_guardian/update_settings", values: {
         startup_grace_minutes: Number(grace.value),
+        notifications_enabled: notifications.value === "enabled",
         replacement_warning_days: Number(warning.value),
         low_battery_threshold: Number(threshold.value),
       }});
@@ -583,6 +586,8 @@ class SensorGuardianPanel extends HTMLElement {
     const names = {
       unknown: "neznáme",
       recommended: "odporúčanie každého zariadenia",
+      enabled: "upozornenia zapnuté",
+      disabled: "upozornenia vypnuté",
       not_monitored: "dostupnosť sa nesleduje",
       source_available_report_pattern_learning: "Zdroj HA je dostupný; interval hlásení sa učí",
       source_entities_unavailable: "Zdrojové entity HA sú nedostupné",
