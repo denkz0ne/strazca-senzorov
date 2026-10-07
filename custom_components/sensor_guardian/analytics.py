@@ -167,8 +167,8 @@ def device_snapshot(
         **{
             key: deepcopy(device.get(key))
             for key in (
-            "device_id",
-            "identifier",
+                "device_id",
+                "identifier",
                 "name",
                 "area_id",
                 "area_name",
@@ -262,6 +262,9 @@ def alert_rows(data: dict, *, include_closed: bool = False) -> list:
                     for point in row.get("evidence", [])
                 ],
             }
+        )
+        result[-1]["cause_confidence"] = (
+            row.get("cause_confidence") or row.get("confidence") or "none"
         )
     return result
 

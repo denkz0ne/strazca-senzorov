@@ -416,6 +416,10 @@ def register_prevention_commands(hass):
         proposed = {**runtime["data"]["settings"], **msg["values"]}
         if bool(proposed.get("quiet_start")) != bool(proposed.get("quiet_end")):
             raise vol.Invalid("Vyplň začiatok aj koniec tichých hodín")
+        if proposed.get("quiet_start") and proposed.get("quiet_start") == proposed.get(
+            "quiet_end"
+        ):
+            raise vol.Invalid("Začiatok a koniec tichých hodín musia byť odlišné")
         runtime["data"]["settings"].update(msg["values"])
         runtime["refresh_battery_subscriptions"]()
         await runtime["storage"].async_save(runtime["data"])

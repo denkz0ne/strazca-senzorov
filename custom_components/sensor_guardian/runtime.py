@@ -21,6 +21,7 @@ from .events import (
     fire_event,
 )
 from .history import prune_history, record_health
+from .notification_policy import allowed, repeat_due
 
 
 def _merge_data(runtime: dict[str, Any], updated: dict[str, Any]) -> None:
@@ -325,16 +326,24 @@ async def async_process_devices(
             active_ids = device.setdefault("active_incident_ids", [])
             if incident["incident_id"] not in active_ids:
                 active_ids.append(incident["incident_id"])
-            if existing is None or incident.get("notification_state") in {
-                "pending",
-                "snoozed",
-            }:
+            if (
+                existing is None
+                or repeat_due(data, incident, current)
+                or incident.get("notification_state")
+                in {
+                    "pending",
+                    "snoozed",
+                    "grouped",
+                }
+            ):
                 new_single_incidents.append((device_id, incident["incident_id"]))
             changed_ids.add(device_id)
         elif state in {"healthy", "not_monitored"}:
             incident = _active_incident(data, [device_id])
             if incident is not None:
-                was_notified = incident.get("notification_state") == "sent"
+                was_notified = incident.get(
+                    "event_sent", incident.get("notification_state") == "sent"
+                )
                 closed = close_incident(incident, now=current)
                 incident.clear()
                 incident.update(closed)
@@ -380,10 +389,15 @@ async def async_process_devices(
                 ):
                     child["parent_incident_id"] = incident["incident_id"]
             changed_ids.add(device_id)
-        if existing is None or incident.get("notification_state") in {
-            "pending",
-            "snoozed",
-        }:
+        if (
+            existing is None
+            or repeat_due(data, incident, current)
+            or incident.get("notification_state")
+            in {
+                "pending",
+                "snoozed",
+            }
+        ):
             parent_incidents.append((incident["incident_id"], ids))
 
     active_parent_ids = {
@@ -397,7 +411,9 @@ async def async_process_devices(
             incident.get("dependency_id"),
             tuple(sorted(incident["device_ids"])),
         ) not in active_parent_ids:
-            was_notified = incident.get("notification_state") == "sent"
+            was_notified = incident.get(
+                "event_sent", incident.get("notification_state") == "sent"
+            )
             closed = close_incident(incident, now=current)
             incident.clear()
             incident.update(closed)
@@ -438,6 +454,26 @@ async def async_process_devices(
                     )
 
     pending_events: list[tuple[str, str, list[str] | None]] = []
+    deliveries: list[tuple[str, str, list[str] | None]] = []
+    time_zone = getattr(getattr(hass, "config", None), "time_zone", "UTC")
+
+    def queue_notice(incident, device, affected_ids):
+        if not incident.get("event_sent", incident.get("notification_state") == "sent"):
+            pending_events.append(
+                (device["device_id"], incident["incident_id"], affected_ids)
+            )
+            incident["event_sent"] = True
+        if incident.get("acknowledged"):
+            incident["notification_state"] = "acknowledged"
+        elif allowed(data, device, now=current, time_zone=time_zone):
+            incident["notification_state"] = "sent"
+            incident["last_notified_at"] = current.isoformat()
+            deliveries.append(
+                (device["device_id"], incident["incident_id"], affected_ids)
+            )
+        else:
+            incident["notification_state"] = "snoozed"
+
     for device_id, incident_id in new_single_incidents:
         incident = next(
             item for item in data["incidents"] if item["incident_id"] == incident_id
@@ -448,21 +484,21 @@ async def async_process_devices(
         if device_id in grouped_ids:
             incident["notification_state"] = "grouped"
             continue
-        if _snoozed(device, current):
-            incident["notification_state"] = "snoozed"
-            continue
-        incident["notification_state"] = "sent"
-        pending_events.append((device_id, incident_id, None))
+        queue_notice(incident, device, None)
     for incident_id, ids in parent_incidents:
         incident = next(
             item for item in data["incidents"] if item["incident_id"] == incident_id
         )
-        device = next(item for item in data["devices"] if item["device_id"] == ids[0])
-        if _snoozed(device, current):
-            incident["notification_state"] = "snoozed"
-            continue
-        incident["notification_state"] = "sent"
-        pending_events.append((ids[0], incident_id, ids))
+        members = [item for item in data["devices"] if item["device_id"] in ids]
+        device = next(
+            (
+                item
+                for item in members
+                if item.get("rules", {}).get("criticality") == "critical"
+            ),
+            members[0],
+        )
+        queue_notice(incident, device, ids)
     for device_id in changed_ids:
         _write_entities(runtime, device_id)
     if changed_ids:
@@ -483,7 +519,11 @@ async def async_process_devices(
         fire_event(
             hass, INCIDENT_EVENT, device, incident=incident, device_ids=affected_ids
         )
-        if data.get("settings", {}).get("notifications_enabled", True):
+    for device_id, incident_id, affected_ids in deliveries:
+        incident = next(
+            item for item in data["incidents"] if item["incident_id"] == incident_id
+        )
+        if True:
             names = [
                 item.get("name") or "Sledované zariadenie"
                 for item in data["devices"]
@@ -504,6 +544,17 @@ async def async_process_devices(
                 title="Strážca senzorov — problém zariadenia",
                 notification_id=f"{DOMAIN}_incident_{incident_id}",
             )
+    for device in data["devices"]:
+        if (
+            device.get("battery_attention")
+            and device.get("battery_notice_pending")
+            and allowed(data, device, now=current, time_zone=time_zone)
+        ):
+            from .notification_policy import battery_notice
+
+            battery_notice(hass, data, device)
+            device["battery_notice_pending"] = False
+            runtime["schedule_save"]() if runtime.get("schedule_save") else None
     for device_id, incident_id in recovery_events:
         device = next(
             item

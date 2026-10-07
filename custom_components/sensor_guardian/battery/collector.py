@@ -8,7 +8,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from homeassistant.components.persistent_notification import async_create, async_dismiss
+from homeassistant.components.persistent_notification import async_dismiss
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import (
     async_track_state_change_event,
@@ -17,6 +17,7 @@ from homeassistant.helpers.event import (
 
 from ..const import DOMAIN
 from ..events import BATTERY_ATTENTION_EVENT, event_payload
+from ..notification_policy import allowed, battery_notice
 from ..runtime import schedule_device_processing
 from .estimator import estimate_remaining_life
 from .samples import normalize_reading, should_store_sample
@@ -190,18 +191,13 @@ def _record_current_device(
         payload["battery_level"] = current_level
         payload["remaining_days_range"] = estimate.get("remaining_days_range")
         hass.bus.async_fire(BATTERY_ATTENTION_EVENT, payload)
-        if settings.get("notifications_enabled", True):
-            name = device.get("name") or "Sledované zariadenie"
-            level_text = current_level if current_level is not None else "neznáma"
-            async_create(
-                hass,
-                f"{name}: batéria vyžaduje pozornosť. Úroveň: {level_text} %. "
-                "Podrobnosti sú v [Strážcovi senzorov](/sensor_guardian).",
-                title="Strážca senzorov — batéria",
-                notification_id=f"{DOMAIN}_battery_{device_id}",
-            )
+        device["battery_notice_pending"] = True
+        if allowed(data, device, time_zone=hass.config.time_zone):
+            battery_notice(hass, data, device)
+            device["battery_notice_pending"] = False
     elif previous_attention and not device["battery_attention"]:
         async_dismiss(hass, f"{DOMAIN}_battery_{device_id}")
+        device["battery_notice_pending"] = False
     for entity in runtime.get("entities", {}).get(device_id, []):
         if entity.hass is not None and entity.entity_id:
             entity.async_write_ha_state()

@@ -61,7 +61,7 @@ def open_or_update_incident(
         "updated_at": stamp,
         "health_state": health_state,
         "cause": cause_result.get("cause", "unknown"),
-        "confidence": None,
+        "confidence": cause_result.get("confidence", "none"),
         "severity": "warning",
         "evidence": deepcopy(evidence),
         "cause_history": [
