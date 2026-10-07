@@ -178,3 +178,59 @@ async def test_primary_switch_unavailable_is_not_masked_by_cached_telemetry(hass
     hass.states.async_set("sensor.power", "20")
     await runtime_module.async_process_devices(hass, runtime, now=now)
     assert data["devices"][0]["health_state"] == "offline"
+
+
+async def test_disabled_member_replaces_group_notice_and_preserves_survivor_links(
+    hass, monkeypatch
+):
+    create, dismiss = MagicMock(), MagicMock()
+    monkeypatch.setattr(runtime_module, "async_create", create)
+    monkeypatch.setattr(runtime_module, "async_dismiss", dismiss)
+    now = datetime.now(UTC)
+    data = empty_store_data()
+    for index in range(4):
+        data["devices"].append(
+            {
+                "device_id": str(index),
+                "tracking_mode": "battery_and_availability",
+                "power_type": "replaceable_battery",
+                "provider_ref": "shared-gateway",
+                "sentinels": [f"sensor.battery{index}"],
+                "entity_refs": {},
+            }
+        )
+        hass.states.async_set(f"sensor.battery{index}", "unavailable")
+    runtime = {
+        "data": data,
+        "startup_at": now - timedelta(days=1),
+        "storage": type("Storage", (), {"async_save": AsyncMock()})(),
+    }
+    await runtime_module.async_process_devices(hass, runtime, now=now)
+    original_id = next(
+        item["incident_id"]
+        for item in data["incidents"]
+        if len(item["device_ids"]) == 4
+    )
+    data["devices"][0]["tracking_mode"] = "battery_only"
+    await runtime_module.async_process_devices(
+        hass, runtime, now=now + timedelta(seconds=1)
+    )
+    old_group = next(
+        item for item in data["incidents"] if item["incident_id"] == original_id
+    )
+    assert old_group.get("closed_at")
+    current_groups = [
+        item
+        for item in data["incidents"]
+        if len(item["device_ids"]) > 1 and not item.get("closed_at")
+    ]
+    assert len(current_groups) == 1
+    assert current_groups[0]["device_ids"] == ["1", "2", "3"]
+    assert all(
+        device["parent_incident_id"] == current_groups[0]["incident_id"]
+        for device in data["devices"][1:]
+    )
+    assert any(
+        call.args[1] == f"sensor_guardian_incident_{original_id}"
+        for call in dismiss.call_args_list
+    )
