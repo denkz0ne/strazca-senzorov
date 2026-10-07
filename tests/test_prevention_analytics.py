@@ -5,7 +5,6 @@ from custom_components.sensor_guardian.analytics import (
     device_detail,
     stock_summary,
 )
-
 from custom_components.sensor_guardian.models import empty_store_data
 
 NOW = datetime(2026, 10, 7, 20, tzinfo=UTC)

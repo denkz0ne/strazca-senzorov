@@ -163,6 +163,9 @@ class GuardianData(TypedDict):
     availability_profiles: list[AvailabilityProfile]
     dependencies: list[DependencyRecord]
     incidents: list[IncidentRecord]
+    signal_samples: list[dict[str, object]]
+    health_history: list[dict[str, object]]
+    battery_stock: list[dict[str, object]]
     settings: dict[str, object]
 
 
@@ -174,6 +177,9 @@ COLLECTION_FIELDS = (
     "availability_profiles",
     "dependencies",
     "incidents",
+    "signal_samples",
+    "health_history",
+    "battery_stock",
 )
 
 
@@ -191,6 +197,9 @@ def empty_store_data() -> GuardianData:
         "availability_profiles": [],
         "dependencies": [],
         "incidents": [],
+        "signal_samples": [],
+        "health_history": [],
+        "battery_stock": [],
         "settings": {},
     }
 
@@ -219,6 +228,9 @@ def validate_store_data(value: object) -> GuardianData:
         "availability_profiles": "profile_id",
         "dependencies": "dependency_id",
         "incidents": "incident_id",
+        "signal_samples": "sample_id",
+        "health_history": "transition_id",
+        "battery_stock": "stock_id",
     }
     for collection, identifier in required_ids.items():
         for index, record in enumerate(data[collection]):

@@ -162,12 +162,14 @@ def _record_current_device(
                 del data["samples"][:-10000]
     samples = [item for item in data["samples"] if item["device_id"] == device_id]
     cycles = [item for item in data["cycles"] if item["device_id"] == device_id]
-    estimate = estimate_remaining_life(samples, cycles)
+    settings = {**data.get("settings", {}), **device.get("rules", {})}
+    estimate = estimate_remaining_life(
+        samples, cycles, low_threshold=float(settings.get("low_battery_threshold", 20))
+    )
     previous_attention = bool(device.get("battery_attention"))
     current_level = sample.get("level_percent")
     current_low = sample.get("native_low") is True
     window = estimate.get("remaining_days_range")
-    settings = data.get("settings", {})
     replace_soon = bool(
         window
         and window.get("max", 10_000)

@@ -17,6 +17,8 @@ def selected_sentinels(devices: list[dict[str, Any]]) -> dict[str, set[str]]:
     """Build the explicit per-device entity allow-list for report tracking."""
     result: dict[str, set[str]] = {}
     for device in devices:
+        if device.get("tracking_mode") == "ignored":
+            continue
         device_id = device.get("device_id")
         if not isinstance(device_id, str):
             continue

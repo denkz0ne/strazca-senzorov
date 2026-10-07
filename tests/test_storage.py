@@ -64,7 +64,7 @@ async def test_minor_migration_is_idempotent_and_persisted(hass_storage, hass):
 
     assert loaded == empty_store_data()
     assert await storage.async_load() == loaded
-    assert hass_storage[storage.key]["minor_version"] == 1
+    assert hass_storage[storage.key]["minor_version"] == 2
     assert hass_storage[storage.key]["data"] == loaded
 
 
@@ -92,6 +92,6 @@ async def test_export_includes_versions_and_payload(hass):
 
     assert await storage.async_export() == {
         "version": 1,
-        "minor_version": 1,
+        "minor_version": 2,
         "data": data,
     }

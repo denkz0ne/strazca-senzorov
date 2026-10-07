@@ -1,7 +1,6 @@
 from datetime import UTC, datetime, timedelta
 
 from custom_components.sensor_guardian.history import record_health, record_signal
-
 from custom_components.sensor_guardian.models import empty_store_data
 
 

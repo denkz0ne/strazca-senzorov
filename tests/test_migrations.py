@@ -27,4 +27,4 @@ def test_migration_preserves_unknown_extension_fields():
 def test_migration_rejects_future_minor_schema():
     """A downgrade does not silently discard newer minor-version data."""
     with pytest.raises(StorageDataError, match="Unsupported Sensor Guardian schema"):
-        migrate_payload(1, 2, empty_store_data())
+        migrate_payload(1, 3, empty_store_data())

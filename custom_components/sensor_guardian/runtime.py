@@ -9,6 +9,7 @@ from homeassistant.components.persistent_notification import async_create, async
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant, callback
 
+from .analytics import signal_trend
 from .availability.engine import evaluate_health
 from .const import DOMAIN
 from .diagnosis.dependencies import build_dependencies, correlated_clusters
@@ -19,6 +20,7 @@ from .events import (
     RECOVERED_EVENT,
     fire_event,
 )
+from .history import prune_history, record_health
 
 
 def _merge_data(runtime: dict[str, Any], updated: dict[str, Any]) -> None:
@@ -121,6 +123,17 @@ def _evidence_for_device(
             evidence.append({"feature": "rssi_dbm", "value": value})
         elif kind in {"lqi", "linkquality"}:
             evidence.append({"feature": "linkquality", "value": value})
+    if data is not None:
+        trend = signal_trend(
+            [
+                row
+                for row in data.get("signal_samples", [])
+                if row["device_id"] == device["device_id"]
+            ],
+            now=now or datetime.now(UTC),
+        )
+        if trend["state"] == "degrading":
+            evidence.append({"feature": "signal_trend", "value": "degrading"})
     estimate = device.get("battery_estimate", {})
     if isinstance(estimate, dict) and estimate.get("abnormal_drain") is True:
         evidence.append({"feature": "abnormal_drain", "value": True})
@@ -219,6 +232,7 @@ async def async_process_devices(
             device["health_state"] = "not_monitored"
             device["health_reason"] = "tracking_disabled"
             changed_ids.add(device["device_id"])
+            record_health(data, device, now=current)
             continue
         previous = device.get("health_state", "unknown")
         profile = next(
@@ -229,6 +243,7 @@ async def async_process_devices(
             ),
             {},
         )
+        settings = {**data.get("settings", {}), **device.get("rules", {})}
         health = evaluate_health(
             now=current,
             startup_at=runtime["startup_at"],
@@ -239,12 +254,10 @@ async def async_process_devices(
             previous_state=previous,
             recovery_started_at=device.get("recovery_started_at"),
             startup_grace=timedelta(
-                minutes=float(data.get("settings", {}).get("startup_grace_minutes", 5))
+                minutes=float(settings.get("startup_grace_minutes", 5))
             ),
             recovery_stability=timedelta(
-                minutes=float(
-                    data.get("settings", {}).get("recovery_stability_minutes", 2)
-                )
+                minutes=float(settings.get("recovery_stability_minutes", 2))
             ),
         )
         if device.get("tracking_mode") == "battery_only":
@@ -260,6 +273,14 @@ async def async_process_devices(
             if new_state != previous:
                 device["health_since"] = current.isoformat()
             changed_ids.add(device["device_id"])
+        if record_health(data, device, now=current):
+            changed_ids.add(device["device_id"])
+
+    last_prune = runtime.get("last_history_prune")
+    if last_prune is None or current - last_prune >= timedelta(days=1):
+        if prune_history(data, now=current):
+            runtime["schedule_save"]() if runtime.get("schedule_save") else None
+        runtime["last_history_prune"] = current
 
     dependencies = build_dependencies(data["devices"])
     offline = [
