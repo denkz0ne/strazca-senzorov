@@ -10,7 +10,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     const pathname = new URL(req.url, "http://localhost").pathname;
     if (pathname === "/") {
       res.setHeader("content-type", "text/html; charset=utf-8");
-      res.end('<style>body{margin:0;font:16px Arial;--primary-text-color:#17202a;--primary-background-color:#f5f7fa;--card-background-color:white;--divider-color:#ddd;--secondary-background-color:#edf2f6;--primary-color:#008eab;--secondary-text-color:#53687b;--error-color:#ba3030}</style><script type="module" src="/sensor_guardian/panel.js?v=0.2.0"></script>'); return;
+      res.end('<style>body{margin:0;font:16px Arial;--primary-text-color:#17202a;--primary-background-color:#f5f7fa;--card-background-color:white;--divider-color:#ddd;--secondary-background-color:#edf2f6;--primary-color:#008eab;--secondary-text-color:#53687b;--error-color:#ba3030}</style><script>customElements.define("sensor-guardian-panel", class extends HTMLElement {});</script><script type="module" src="/sensor_guardian/panel.js?v=0.2.0"></script>'); return;
     }
     const relative = pathname.replace(/^\/sensor_guardian\//, "");
     if (!/^(panel\.js|frontend\/[a-z-]+\.js)$/.test(relative) || !fs.existsSync(path.join(directory, relative))) { res.writeHead(404); res.end(); return; }
@@ -22,7 +22,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } });
     const errors = []; page.on("pageerror", error => errors.push(error.message));
     await page.goto(`http://127.0.0.1:${server.address().port}/`);
-    await page.waitForFunction(() => customElements.get("sensor-guardian-panel"));
+    await page.waitForFunction(() => customElements.get("sensor-guardian-panel-0-2-0"));
     await page.evaluate(() => {
       window.commands = []; window.confirm = () => true;
       const now = new Date().toISOString(), meta = { backend_version: "0.2.0", evaluated_at: now, collection_state: "running", schema_version: "1.2" };
@@ -35,7 +35,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
       const alert = { incident_id: "i1", device_ids: ["socket"], names: ["Zásuvka SERVER"], device_count: 1, cause: "unknown", evidence: [], health_state: "offline", opened_at: now, acknowledged: false };
       const settings = { low_battery_threshold: 20, startup_grace_minutes: 5, recovery_stability_minutes: 2, notifications_enabled: true, prevention_horizon_days: 14, retention_days: 365, quiet_start: "", quiet_end: "", notification_repeat_minutes: 0 };
       const stock = { battery_type: "AAA", on_hand: null, minimum: 2, installed_quantity: 2, used_quantity: 2, device_count: 1, suggested_reserve: 2, basis: "confirmed_replacements" };
-      const panel = document.createElement("sensor-guardian-panel"); document.body.append(panel); let attempts = 0;
+      const panel = document.createElement("sensor-guardian-panel-0-2-0"); document.body.append(panel); let attempts = 0;
       panel.hass = { states: { "sensor.new_battery": { state: "70", attributes: { unit_of_measurement: "%" } } },
         callWS: async msg => {
           window.commands.push(msg); const name = msg.type.split("/")[1];
@@ -62,7 +62,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.getByRole("heading", { name: "zb65.stmievac", exact: true }).waitFor();
     assert.equal(await page.getByText("45 %", { exact: true }).first().isVisible(), true);
     await page.getByLabel("Nízka batéria (%)").fill("17");
-    await page.evaluate(() => document.querySelector("sensor-guardian-panel").autoRefresh());
+    await page.evaluate(() => document.querySelector("sensor-guardian-panel-0-2-0").autoRefresh());
     assert.equal(await page.getByLabel("Nízka batéria (%)").inputValue(), "17");
     await page.getByRole("button", { name: "Uložiť pravidlá", exact: true }).click();
     assert.equal(await page.evaluate(() => window.commands.find(c => c.type.endsWith("/update_device_rules")).values.low_battery_threshold), 17);

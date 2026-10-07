@@ -14,6 +14,13 @@ async def async_register_panel(hass: HomeAssistant) -> None:
     panel_path = Path(__file__).parent / "www" / "panel.js"
     await hass.http.async_register_static_paths(
         [StaticPathConfig(f"/{DOMAIN}/panel.js", str(panel_path), cache_headers=False)]
+        + [
+            StaticPathConfig(
+                f"/{DOMAIN}/frontend",
+                str(panel_path.parent / "frontend"),
+                cache_headers=False,
+            )
+        ]
     )
     frontend.async_register_built_in_panel(
         hass,
@@ -24,7 +31,7 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         require_admin=True,
         config={
             "_panel_custom": {
-                "name": "sensor-guardian-panel",
+                "name": f"sensor-guardian-panel-{VERSION.replace('.', '-')}",
                 "js_url": f"/{DOMAIN}/panel.js?v={VERSION}",
             }
         },

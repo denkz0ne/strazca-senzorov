@@ -1,634 +1,130 @@
-/* Self-hosted, dependency-free Home Assistant management panel. */
+import { UI_VERSION, ago, btn, el, label } from "./frontend/ui.js?v=0.2.0";
+import { styles } from "./frontend/styles.js?v=0.2.0";
+import { dashboardView } from "./frontend/dashboard.js?v=0.2.0";
+import { devicesView } from "./frontend/devices.js?v=0.2.0";
+import { detailView } from "./frontend/detail.js?v=0.2.0";
+import { alertsView } from "./frontend/alerts.js?v=0.2.0";
+import { onboardingView } from "./frontend/onboarding.js?v=0.2.0";
+import { catalogueView, migrationView, settingsView, stockView } from "./frontend/settings.js?v=0.2.0";
+
+const views = { overview:dashboardView, devices:devicesView, detail:detailView,
+  incidents:alertsView, discovery:onboardingView, settings:settingsView,
+  stock:stockView, migration:migrationView, catalogue:catalogueView };
 class SensorGuardianPanel extends HTMLElement {
   constructor() {
-    super();
-    this.attachShadow({ mode: "open" });
-    this.section = "overview";
-    this.offset = 0;
-    this.limit = 30;
-    this.query = "";
-    this.items = [];
-    this.page = null;
-    this.status = "";
-    this.preview = null;
-    this.selectedDevices = new Set();
-    this.loaded = false;
-    this.openDetails = new Set();
+    super();this.attachShadow({mode:"open"});
+    this.state={route:"overview",query:"",offset:0,days:30,filters:{filter:"all",sort:"risk"},closed:false,onboardingStep:"select"};
+    this.selected=new Set();this.candidateChoices=new Map();this.drafts=new Map();this.dirtyKeys=new Set();
+    this.loaded=false;this.sequence=0;this.pendingCount=null;this.status="";
   }
-
   set hass(value) {
-    this._hass = value;
-    if (!this.loaded) {
-      this.loaded = true;
-      this.render();
-      this.refresh();
+    this._hass=value;
+    if(!this.loaded) {this.loaded=true;this.shell();this.load();}
+  }
+  get hass(){return this._hass;}
+  connectedCallback(){clearInterval(this.timer);this.timer=setInterval(()=>this.autoRefresh(),30000);}
+  disconnectedCallback(){clearInterval(this.timer);clearTimeout(this.searchTimer);this.sequence++;}
+  shell(){
+    const style=el("style");style.textContent=styles+" .mobile-list{display:none}@media(max-width:600px){.desktop-list{display:none}.mobile-list{display:block}}";
+    const main=el("main"),header=el("header"),titles=el("div");
+    titles.append(el("h1","Strážca senzorov"),el("p","Prevencia · dostupnosť · diagnostika","muted"));
+    this.version=el("div",`Rozhranie ${UI_VERSION}`,"version");header.append(titles,this.version);
+    const sticky=el("div",null,"sticky");this.nav=el("nav");this.nav.setAttribute("role","tablist");this.nav.setAttribute("aria-label","Sekcie Strážcu");
+    for(const [route,title] of [["overview","Prehľad"],["devices","Zariadenia"],["incidents","Upozornenia"],["discovery","Pridať zariadenia"],["settings","Nastavenia"]]){
+      const button=btn(title,()=>this.go(route));button.dataset.section=route;button.setAttribute("role","tab");button.setAttribute("aria-selected",String(route===this.state.route));
+      this.nav.append(button);
     }
+    const tools=el("div",null,"tools");this.search=el("input");this.search.type="search";this.search.placeholder="Hľadať zariadenie, oblasť alebo integráciu";this.search.setAttribute("aria-label","Hľadať");
+    this.search.addEventListener("input",()=>{clearTimeout(this.searchTimer);this.searchTimer=setTimeout(async()=>{
+      if(this.state.route==="detail")return;
+      this.state.query=this.search.value;this.state.offset=0;
+      if(this.state.route==="overview")await this.go("devices",{preserveQuery:true});else await this.load();
+    },300);});
+    tools.append(this.search,btn("Obnoviť",()=>this.load()));this.statusNode=el("div",null,"status");this.statusNode.setAttribute("role","status");this.statusNode.setAttribute("aria-live","polite");
+    sticky.append(this.nav,tools,this.statusNode);this.banner=el("div");this.content=el("section");this.content.setAttribute("role","tabpanel");this.content.setAttribute("aria-label","Obsah Strážcu");
+    main.append(header,sticky,this.banner,this.content);this.shadowRoot.replaceChildren(style,main);
+    this.shadowRoot.addEventListener("guardian-error",event=>this.showError(event.detail));
   }
-
-  get hass() {
-    return this._hass;
+  draft(key,base){if(!this.drafts.has(key))this.drafts.set(key,structuredClone(base||{}));return this.drafts.get(key);}
+  markDirty(key){this.dirtyKeys.add(key);this.updateStatus();}
+  clearDraft(key){this.drafts.delete(key);this.dirtyKeys.delete(key);this.updateStatus();}
+  showStatus(message){this.status=message;this.updateStatus();}
+  showError(error){this.error=error?.message||String(error||"Údaje sa nepodarilo načítať.");this.updateStatus();}
+  updateStatus(){
+    if(!this.statusNode)return;
+    this.statusNode.textContent=this.dirtyKeys.size?"Neuložené zmeny — automatické obnovenie formulára je pozastavené.":this.status;
+    this.statusNode.classList.toggle("dirty",!!this.dirtyKeys.size);
+    this.banner.replaceChildren();
+    if(this.error)this.banner.append(el("div",this.error,"notice error"));
+    else if(this.meta?.backend_version&&this.meta.backend_version!==UI_VERSION)this.banner.append(el("div",`Rozhranie ${UI_VERSION} a backend ${this.meta.backend_version} sa líšia. Dokonči aktualizáciu a reštart HA, potom obnov prehliadač.`,"notice error"));
+    else if(this.meta?.evaluated_at&&Date.now()-new Date(this.meta.evaluated_at).getTime()>300000)this.banner.append(el("div","Posledné vyhodnotenie je staršie než päť minút. Zobrazené údaje môžu byť zastarané.","notice error"));
+    this.version.textContent=`Rozhranie ${UI_VERSION} · backend ${this.meta?.backend_version||"čakáme"}`;
+    if(this.meta?.evaluated_at&&!this.dirtyKeys.size&&!this.error)this.statusNode.textContent=[this.status,`Posledná kontrola ${ago(this.meta.evaluated_at)}`].filter(Boolean).join(" · ");
   }
-
-  connectedCallback() {
-    clearInterval(this.refreshTimer);
-    this.refreshTimer = setInterval(() => {
-      if (this._hass && ["overview", "batteries", "incidents"].includes(this.section) &&
-          !this.shadowRoot.activeElement) this.refresh();
-    }, 30000);
+  async call(name,values={}){
+    try{return await this.hass.callWS({type:`sensor_guardian/${name}`,...values});}
+    catch(error){this.showError(error.code==="unknown_command"?"HA ešte neposkytuje nové rozhranie. Over nainštalovanú verziu a reštart integrácie.":error);throw error;}
   }
-
-  disconnectedCallback() {
-    clearInterval(this.refreshTimer);
+  async service(name,values){try{return await this.hass.callService("sensor_guardian",name,values);}catch(error){this.showError(error);throw error;}}
+  async go(route,options={}){
+    if(this.dirtyKeys.size&&!window.confirm("Máš neuložené zmeny. Zahodiť ich a zmeniť sekciu?"))return;
+    this.drafts.clear();this.dirtyKeys.clear();
+    if(options.state)this.state={...this.state,...options.state,filters:{...options.state.filters}};
+    if(route==="detail")this.returnState={...this.state,filters:{...this.state.filters}};
+    this.state.route=route;if(!options.state)this.state.offset=0;
+    if(options.id)this.state.id=options.id;
+    if(options.filter){this.state.filters.filter=options.filter;this.state.query="";this.search.value="";}
+    if(!options.preserveQuery&&route!=="devices"){this.state.query="";this.search.value="";}
+    this.error="";this.data=null;this.content.replaceChildren(el("p","Načítavam…","empty"));
+    this.updateNav();await this.load(true);
+    const heading=this.content.querySelector("h2");if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}
   }
-
-  formatTime(value) {
-    if (!value) return "—";
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("sk-SK");
-  }
-
-  render() {
-    this.shadowRoot.innerHTML = `
-      <style>
-        :host { display:block; color:var(--primary-text-color); background:var(--primary-background-color); min-height:100%; }
-        main { max-width:1180px; margin:auto; padding:24px; box-sizing:border-box; }
-        h1 { font-size:24px; margin:0 0 18px; }
-        .sticky-tools { position:sticky; top:0; z-index:5; padding:8px 0 2px; background:var(--primary-background-color); }
-        nav { display:flex; flex-wrap:nowrap; gap:8px; margin-bottom:10px; border-bottom:1px solid var(--divider-color); padding-bottom:10px; overflow-x:auto; }
-        nav button { flex:0 0 auto; }
-        button, input, select { font:inherit; color:inherit; background:var(--card-background-color); border:1px solid var(--divider-color); border-radius:8px; padding:9px 12px; }
-        button { cursor:pointer; }
-        button[aria-selected="true"] { background:var(--primary-color); color:var(--text-primary-color,#fff); }
-        button:focus-visible, input:focus-visible, select:focus-visible { outline:2px solid var(--primary-color); outline-offset:2px; }
-        .tools { display:flex; gap:8px; margin:0 0 14px; }
-        .tools input { flex:1; min-width:80px; }
-        #status { min-height:24px; color:var(--secondary-text-color); }
-        .card { background:var(--card-background-color); border-radius:12px; padding:16px; margin:10px 0; box-shadow:var(--ha-card-box-shadow,0 1px 3px #0002); }
-        .title { font-size:17px; font-weight:600; margin-bottom:8px; }
-        .meta { color:var(--secondary-text-color); line-height:1.5; overflow-wrap:anywhere; }
-        .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; align-items:center; }
-        .empty { padding:28px 12px; text-align:center; color:var(--secondary-text-color); }
-        .badge { display:inline-block; border-radius:999px; padding:3px 9px; background:var(--secondary-background-color); margin-right:6px; }
-        .problem { color:var(--error-color); }
-        .table-wrap { max-width:100%; overflow:auto; border:1px solid var(--divider-color); border-radius:8px; margin:8px 0 18px; }
-        table { width:100%; border-collapse:collapse; font-size:13px; }
-        th,td { text-align:left; padding:7px 9px; border-bottom:1px solid var(--divider-color); white-space:nowrap; }
-        th { position:sticky; top:0; z-index:1; background:var(--secondary-background-color); }
-        tbody tr:last-child td { border-bottom:0; }
-        details { white-space:normal; min-width:180px; }
-        details .actions { min-width:260px; }
-        @media(max-width:600px) { main { padding:14px; } .tools { flex-direction:row; } .tools input { min-width:0; } }
-      </style>
-      <main>
-        <h1>Strážca senzorov</h1>
-        <div class="sticky-tools">
-        <nav role="tablist" aria-label="Sekcie Strážcu senzorov">
-          <button role="tab" data-section="overview" aria-selected="true">Prehľad</button>
-          <button role="tab" data-section="batteries" aria-selected="false">Batérie</button>
-          <button role="tab" data-section="devices" aria-selected="false">Zariadenia</button>
-          <button role="tab" data-section="incidents" aria-selected="false">Incidenty</button>
-          <button role="tab" data-section="settings" aria-selected="false">Nastavenia</button>
-        </nav>
-        <div class="tools"><input id="search" type="search" aria-label="Hľadať v sekcii" placeholder="Hľadať"><button id="reload">Obnoviť</button></div>
-        </div>
-        <div id="status" role="status" aria-live="polite"></div>
-        <section id="content" role="tabpanel" aria-label="Obsah sekcie"></section>
-        <button id="more" hidden>Načítať ďalšie</button>
-      </main>`;
-    this.shadowRoot.querySelectorAll("[data-section]").forEach((button) => {
-      button.addEventListener("click", () => {
-        this.section = button.dataset.section;
-        this.shadowRoot.querySelectorAll("[data-section]").forEach((tab) => {
-          tab.setAttribute("aria-selected", String(tab === button));
-        });
-        this.offset = 0;
-        this.refresh();
-      });
-    });
-    this.shadowRoot.getElementById("reload").addEventListener("click", () => this.refresh());
-    this.shadowRoot.getElementById("more").addEventListener("click", () => {
-      this.offset += this.limit;
-      this.refresh(true);
-    });
-    let timer;
-    this.shadowRoot.getElementById("search").addEventListener("input", (event) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        this.query = event.target.value;
-        this.offset = 0;
-        this.refresh();
-      }, 250);
+  async back(){const previous=this.returnState||{route:"devices",filters:{filter:"all",sort:"risk"},query:""};await this.go(previous.route,{state:previous,preserveQuery:true});this.search.value=this.state.query||"";}
+  updateNav(){
+    this.nav.querySelectorAll("[data-section]").forEach(button=>{
+      const route=button.dataset.section;button.setAttribute("aria-selected",String(route===this.state.route||(this.state.route==="detail"&&route==="devices")||(["stock","migration","catalogue"].includes(this.state.route)&&route==="settings")));
+      if(route==="discovery")button.textContent=`Pridať zariadenia${this.pendingCount===null?"":` (${this.pendingCount})`}`;
     });
   }
-
-  async refresh(append = false) {
-    if (!this.hass) return;
-    this.status = "Načítavam…";
-    this.paintStatus();
-    try {
-      const previousTracked = append ? (this.page?.related?.tracked_devices || []) : [];
-      this.page = await this.hass.callWS({
-        type: "sensor_guardian/get_data",
-        section: this.section === "devices" ? "discovery" : this.section,
-        offset: this.offset,
-        limit: this.limit,
-        query: this.query,
-      });
-      if (append && this.page.related?.tracked_devices) {
-        this.page.related.tracked_devices = [...previousTracked, ...this.page.related.tracked_devices];
-      }
-      if (!append) this.items = [];
-      this.items = [...this.items, ...(this.page.items || [])];
-      if (this.section === "devices") {
-        const tab = this.shadowRoot.querySelector('[data-section="devices"]');
-        if (tab) tab.textContent = this.page.total ? `Zariadenia (${this.page.total})` : "Zariadenia";
-      }
-      this.status = this.page.total === undefined ? "" : `Záznamov: ${this.page.total}`;
-      this.paint();
-    } catch (error) {
-      this.status = error.message || "Údaje sa nepodarilo načítať.";
-      this.paintStatus();
-      this.shadowRoot.getElementById("content").replaceChildren();
-    }
+  async load(force=false){
+    if(!this.hass||(!force&&this.dirtyKeys.size)){this.updateStatus();return;}
+    const serial=++this.sequence,route=this.state.route;
+    this.error="";this.status="Načítavam…";this.updateStatus();
+    const paging={query:this.state.query,offset:this.state.offset,limit:50};
+    try{
+      let data;
+      if(route==="overview")data=await this.call("get_dashboard");
+      else if(route==="devices")data=await this.call("get_devices",{...paging,...this.state.filters});
+      else if(route==="detail")data=await this.call("get_device_detail",{device_id:this.state.id,days:this.state.days});
+      else if(route==="incidents")data=await this.call("get_alerts",{...paging,closed:this.state.closed});
+      else if(route==="discovery")data=await this.call("get_candidates",paging);
+      else if(route==="settings"||route==="migration")data=await this.call("get_settings");
+      else if(route==="stock")data=await this.call("get_stock");
+      else if(route==="catalogue")data=await this.call("get_data",{...paging,section:"batteries"});
+      if(serial!==this.sequence||route!==this.state.route)return;
+      if(route==="overview"&&typeof data?.counts?.total!=="number")throw new Error("Dashboard neposkytol platné súhrny.");
+      for(const key of this.drafts.keys())if(!this.dirtyKeys.has(key))this.drafts.delete(key);
+      this.data=data;this.meta=data.meta||this.meta;
+      if(data.pending_count!==undefined)this.pendingCount=data.pending_count;
+      if(route==="discovery")this.pendingCount=data.total;
+      this.status=data.total!==undefined?`Záznamov: ${data.total}`:"Údaje načítané";this.paint();
+    }catch(error){if(serial===this.sequence){this.showError(error);if(!this.data)this.content.replaceChildren(el("p","Údaje sa nepodarilo načítať. Skús Obnoviť a over aktívnu verziu integrácie.","empty"));}}
   }
-
-  paintStatus() {
-    this.shadowRoot.getElementById("status").textContent = this.status;
+  async autoRefresh(){
+    if(!this.isConnected||this.dirtyKeys.size||["discovery","settings","stock","migration","catalogue"].includes(this.state.route))return;
+    if(this.shadowRoot.activeElement?.matches("input,select,textarea"))return;
+    await this.load();
   }
-
-  paint() {
-    const content = this.shadowRoot.getElementById("content");
-    content.replaceChildren();
-    if (this.section === "settings") this.renderSettings(content);
-    else if (this.section === "devices") this.renderCandidates(content);
-    else if (this.section === "batteries") this.renderBatteries(content);
-    else this.renderRecords(content, this.items);
-    const more = this.shadowRoot.getElementById("more");
-    more.hidden = !this.page?.has_more;
-    this.paintStatus();
+  paint(){
+    if(!this.data)return;
+    this.updateNav();
+    const render=views[this.state.route];this.content.replaceChildren(render(this,this.data));this.updateStatus();
   }
-
-  renderRecords(content, records) {
-    if (!records.length) return this.empty(content, "Zatiaľ tu nie sú žiadne záznamy.");
-    if (this.section === "overview") {
-      const wrap = document.createElement("div"); wrap.className = "table-wrap";
-      const table = document.createElement("table"); table.innerHTML = "<thead><tr><th>Zariadenie</th><th>ID</th><th>Oblasť</th><th>Integrácia</th><th>Dostupnosť</th><th>Príčina</th><th>Napájanie</th><th>Batéria</th><th>Signál</th><th>Posledné hlásenie</th></tr></thead>";
-      const body = document.createElement("tbody");
-      records.forEach((item) => { const row = document.createElement("tr");
-        const signalText = (item.signal_values || []).map((s) => `${s.kind} ${s.value}`).join(", ") || ((item.recommended_signal_entities || []).length ? "entity vypnuté" : "—");
-        [item.name || "Neznámy názov", item.identifier || "", item.area_name || "—", item.source_integration || "neznáma", this.label(item.health_state || "unknown"), this.label(item.cause || "unknown"), this.label(item.power_type || "unknown"), typeof item.battery_level === "number" ? `${item.battery_level} %` : "—", signalText, this.formatTime(item.last_reported_at)].forEach((value) => { const cell = document.createElement("td"); cell.textContent = value; row.append(cell); });
-        const detailsRow = document.createElement("tr"); const detailsCell = document.createElement("td"); detailsCell.colSpan = 10; const details = document.createElement("details"); const summary = document.createElement("summary"); summary.textContent = "Batéria a incidenty"; details.append(summary);
-        details.open = this.openDetails.has(item.device_id);
-        details.addEventListener("toggle", () => {
-          details.open ? this.openDetails.add(item.device_id) : this.openDetails.delete(item.device_id);
-        });
-        const batteryLevel = typeof item.battery_level === "number" ? `${item.battery_level}%` : "neznáma";
-        const estimate = item.battery_estimate?.remaining_days_range;
-        const life = estimate ? `${estimate.min}–${estimate.max} dní` : "odhad nedostupný";
-        this.text(details, `Batéria: ${batteryLevel} · ${item.battery_type || "typ neznámy"} × ${item.battery_quantity || "?"} · posledná výmena: ${item.last_replaced_at ? this.formatTime(item.last_replaced_at) : "nezaznamenaná"} · ${life}`, "meta");
-        this.text(details, `Natívne battery low: ${item.battery_low === true ? "áno" : item.battery_low === false ? "nie" : "neznáme"} · napätie: ${item.voltage ?? "neznáme"}${item.voltage_unit ? ` ${item.voltage_unit}` : ""} · signál: ${(item.signal_values || []).map((s) => `${s.kind} ${s.value}`).join(", ") || "neznámy"}`, "meta");
-        this.text(details, `História: ${item.sample_count || 0} batériových vzoriek · ${item.report_count || 0} hlásení vybraného zdroja · ${this.label(item.health_reason || "unknown")}`, "meta");
-        if (!estimate && item.power_type !== "mains") this.text(details, "Odhad potrebuje aspoň 4 použiteľné vzorky počas 7 dní s poklesom úrovne alebo históriu ukončených výmen. Aktuálne percento sa zobrazuje nezávisle od odhadu.", "meta");
-        this.deviceActions(details, item);
-        this.text(details, `Stav batérie: ${item.battery_attention ? "vyžaduje pozornosť" : "bez upozornenia"} · režim: ${this.label(item.tracking_mode || "unknown")} · transport: ${this.label(item.transport || "unknown")} · incidenty: ${(item.active_incident_ids || []).length}`, "meta"); detailsCell.append(details); detailsRow.append(detailsCell); body.append(row, detailsRow);
-      });
-      table.append(body); wrap.append(table); content.append(wrap); return;
-    }
-    records.forEach((item) => {
-      const card = this.card(content, item.name || item.model || item.incident_id || item.device_id || "Záznam");
-      const status = item.health_state || item.status;
-      if (status) this.badge(card, this.label(status), status === "offline" || status === "stale");
-      if (item.cause) this.badge(card, `Príčina: ${this.label(item.cause)}`);
-      const detail = [];
-      if (item.last_reported_at) detail.push(`Posledné hlásenie: ${item.last_reported_at}`);
-      if (item.battery_attention !== undefined) detail.push(`Batéria: ${item.battery_attention ? "vyžaduje pozornosť" : "bez upozornenia"}`);
-      if (item.device_ids) detail.push(`Zariadenia: ${item.device_ids.length}`);
-      if (item.cause_confidence) detail.push(`Istota: ${this.label(item.cause_confidence)}`);
-      this.text(card, detail.join(" · ") || "Podrobnosti nie sú k dispozícii.", "meta");
-      if (item.device_id) this.deviceActions(card, item);
-      if (item.incident_id && !item.closed_at) this.confirmCause(card, item.incident_id);
-    });
-    if (!records.length) this.empty(content, "Žiadne výsledky pre toto hľadanie.");
-  }
-
-  renderCandidates(content) {
-    if (!this.items.length) return this.empty(content, "Nenašli sa nové odporúčania zariadení.");
-    const filters = this.actions(content);
-    const integrations = this.select(filters, "Filtrovať podľa integrácie", ["all", ...(this.page.filters?.integrations || [...new Set(this.items.map((i) => i.source_integration || "unknown"))])]);
-    const powers = this.select(filters, "Filtrovať podľa napájania", ["all", "battery_data", "mains", "rechargeable", "unknown"]);
-    const areas = this.select(filters, "Filtrovať podľa oblasti", ["all", ...(this.page.filters?.areas || [...new Set(this.items.map((i) => i.area_name || "—"))])]);
-    const availability = this.select(filters, "Filtrovať podľa dostupnosti", ["all", ...(this.page.filters?.availability || ["on", "off", "unavailable", "unknown"])]);
-    const visible = () => this.items.filter((item) =>
-      (integrations.value === "all" || (item.source_integration || "unknown") === integrations.value) &&
-      (powers.value === "all" || (powers.value === "battery_data" ? item.has_battery_data : (item.power_type || "unknown") === powers.value)) &&
-      (areas.value === "all" || (item.area_name || "—") === areas.value) &&
-      (availability.value === "all" || (item.availability_state || "unknown") === availability.value));
-    integrations.value = this.discoveryIntegration || "all";
-    powers.value = this.discoveryPower || "all";
-    areas.value = this.discoveryArea || "all";
-    availability.value = this.discoveryAvailability || "all";
-    integrations.addEventListener("change", () => { this.discoveryIntegration = integrations.value; this.paint(); });
-    powers.addEventListener("change", () => { this.discoveryPower = powers.value; this.paint(); });
-    areas.addEventListener("change", () => { this.discoveryArea = areas.value; this.paint(); });
-    availability.addEventListener("change", () => { this.discoveryAvailability = availability.value; this.paint(); });
-    const selectPage = document.createElement("input"); selectPage.type = "checkbox"; selectPage.setAttribute("aria-label", "Vybrať všetkých zobrazených kandidátov"); filters.append(selectPage);
-    selectPage.checked = visible().length > 0 && visible().every((item) => this.selectedDevices.has(item.device_id));
-    const bulkMode = this.select(filters, "Spoločný režim sledovania", ["recommended", "availability_only", "battery_only", "battery_and_availability"]);
-    const bulkPower = this.select(filters, "Spoločné napájanie", ["recommended", "replaceable_battery", "rechargeable", "mains", "unknown"]);
-    const trackSelected = this.button(filters, "Sledovať vybrané (0)", async () => {
-      const selected = this.items.filter((item) => this.selectedDevices.has(item.device_id));
-      if (!selected.length || !window.confirm(`Začať sledovať ${selected.length} zariadení?`)) return;
-      for (const item of selected) await this.command({ type: "sensor_guardian/track_device", device_id: item.device_id, tracking_mode: item._mode || (bulkMode.value === "recommended" ? item.suggested_mode : bulkMode.value), power_type: item._power || (bulkPower.value === "recommended" ? item.power_type || "unknown" : bulkPower.value) });
-      this.selectedDevices = new Set(); await this.refresh();
-    });
-    trackSelected.textContent = `Sledovať vybrané (${this.selectedDevices.size})`;
-    const wrap = document.createElement("div"); wrap.className = "table-wrap";
-    const table = document.createElement("table"); table.innerHTML = "<thead><tr><th>Vybrať</th><th>Zariadenie</th><th>ID</th><th>Oblasť</th><th>Integrácia</th><th>Napájanie</th><th>Odporúčanie</th><th>Rozhodnutie</th></tr></thead>";
-    const body = document.createElement("tbody");
-    visible().forEach((item) => {
-      const row = document.createElement("tr");
-      const checkCell = document.createElement("td"); const check = document.createElement("input"); check.type = "checkbox"; check.setAttribute("aria-label", `Vybrať ${item.name || "zariadenie"}`); check.checked = this.selectedDevices?.has(item.device_id) || false;
-      check.addEventListener("change", () => { this.selectedDevices ||= new Set(); check.checked ? this.selectedDevices.add(item.device_id) : this.selectedDevices.delete(item.device_id); trackSelected.textContent = `Sledovať vybrané (${this.selectedDevices.size})`; }); checkCell.append(check); row.append(checkCell);
-      const name = document.createElement("td"); name.textContent = item.name || "Neznámy názov"; row.append(name);
-      const identifier = document.createElement("td"); identifier.textContent = item.identifier || ""; row.append(identifier);
-      const area = document.createElement("td"); area.textContent = item.area_name || "—"; row.append(area);
-      const integration = document.createElement("td"); integration.textContent = item.source_integration || "neznáma"; row.append(integration);
-      const powerCell = document.createElement("td"); const power = this.select(powerCell, "Napájanie", ["replaceable_battery", "rechargeable", "mains", "unknown"]); power.value = item._power || item.power_type || "unknown"; power.addEventListener("change", () => { item._power = power.value; }); row.append(powerCell);
-      const recommendation = document.createElement("td"); recommendation.textContent = `${this.label(item.suggested_mode)} · zhoda ${this.label(item.confidence)}`; row.append(recommendation);
-      const decision = document.createElement("td"); const mode = this.select(decision, "Režim sledovania", [item.suggested_mode, "availability_only", "battery_only", "battery_and_availability"]); mode.addEventListener("change", () => { item._mode = mode.value; });
-      const detail = document.createElement("details"); const summary = document.createElement("summary"); summary.textContent = "Dôkazy"; detail.append(summary); this.text(detail, (item.reasons || []).join("; ") || "Bez dodatočných dôkazov.", "meta");
-      if (item.manufacturer || item.model) this.text(detail, `${item.manufacturer || "Neznámy výrobca"} · ${item.model || "Neznámy model"}`, "meta");
-      if (item.battery_type || item.battery_quantity) this.text(detail, `Katalógový návrh: ${item.battery_type || "typ neurčený"} × ${item.battery_quantity || 1}`, "meta");
-      const selected = Object.entries(item.entity_refs || {}).flatMap(([kind, entityId]) => {
-        const state = entityId && this._hass?.states?.[entityId];
-        return state ? [`${kind}: ${state.state}${state.attributes?.unit_of_measurement ? ` ${state.attributes.unit_of_measurement}` : ""}`] : [];
-      });
-      if (selected.length) this.text(detail, selected.join(" · "), "meta");
-      const signalReadings = (item.signal_entities || []).flatMap((entityId) => {
-        const state = this._hass?.states?.[entityId];
-        return state ? [`${entityId}: ${state.state}`] : [];
-      });
-      if (signalReadings.length) this.text(detail, `Signál: ${signalReadings.join(" · ")}`, "meta");
-      if ((item.recommended_signal_entities || []).length) this.text(detail, `Odporúčané vypnuté signálové entity: ${item.recommended_signal_entities.join(", ")}. Strážca ich nezapína.`, "meta"); decision.append(detail);
-      this.button(decision, "Ignorovať", async () => { await this.command({ type: "sensor_guardian/dismiss_candidate", device_id: item.device_id }); await this.refresh(); }); row.append(decision); body.append(row);
-    });
-    selectPage.addEventListener("change", () => { visible().forEach((item) => { this.selectedDevices ||= new Set(); selectPage.checked ? this.selectedDevices.add(item.device_id) : this.selectedDevices.delete(item.device_id); }); trackSelected.textContent = `Sledovať vybrané (${this.selectedDevices?.size || 0})`; });
-    table.append(body); wrap.append(table); content.append(wrap);
-  }
-
-  renderBatteries(content) {
-    const cycles = this.page?.related?.cycles || [];
-    const trackedDevices = this.page?.related?.tracked_devices || [];
-    if (!this.items.length && !cycles.length && !trackedDevices.length) return this.empty(content, "Katalóg alebo história sa zatiaľ nenačítali.");
-    const addCard = this.card(content, "Pridať model batérie");
-    const addActions = this.actions(addCard);
-    const manufacturer = this.textInput(addActions, "Výrobca");
-    const modelName = this.textInput(addActions, "Model zariadenia");
-    const batteryType = this.textInput(addActions, "Typ batérie (napr. CR2032)");
-    const quantity = this.numberInput(addActions, "Počet batérií", 1, 20, 1);
-    const power = this.select(addActions, "Napájanie batérie", ["replaceable_battery", "rechargeable", "unknown"]);
-    this.button(addActions, "Pridať do katalógu", async () => {
-      await this.command({ type: "sensor_guardian/add_model", manufacturer: manufacturer.value, model: modelName.value, battery_type: batteryType.value, battery_quantity: Number(quantity.value), power_type: power.value });
-      await this.refresh();
-    });
-    this.text(content, `Modely v katalógu: ${this.page?.total || 0} · sledované batériové zariadenia: ${this.page?.related?.tracked_device_count || 0} · evidované cykly: ${this.page?.related?.cycle_count || 0}`, "meta");
-    this.text(content, "Sledované zariadenia", "title");
-    if (!trackedDevices.length) this.empty(content, "Zatiaľ sa nesledujú batériové zariadenia.");
-    else {
-      const wrap = document.createElement("div"); wrap.className = "table-wrap";
-      const table = document.createElement("table");
-      table.innerHTML = "<thead><tr><th>Zariadenie</th><th>ID</th><th>Batéria</th><th>Úroveň</th><th>Výdrž / stav</th><th>Výmena</th><th>Správa</th></tr></thead>";
-      const body = document.createElement("tbody");
-      const sort = this.batterySort || "name";
-      const ordered = [...trackedDevices].sort((a,b) => String(a[sort] ?? "").localeCompare(String(b[sort] ?? ""), "sk", {numeric:true}));
-      ordered.forEach((device) => {
-      const row = document.createElement("tr");
-      const name = document.createElement("td"); name.textContent = device.name || "Neznámy názov"; row.append(name);
-      const ident = document.createElement("td"); ident.textContent = device.identifier || ""; row.append(ident);
-      const battery = document.createElement("td"); battery.textContent = `${device.battery_type || "Typ neznámy"} × ${device.battery_quantity || "?"}`; row.append(battery);
-      const level = document.createElement("td"); level.textContent = Number.isFinite(Number(device.battery_level)) ? `${device.battery_level}%` : "—"; row.append(level);
-      const health = document.createElement("td"); const estimateRange = device.battery_estimate?.remaining_days_range;
-      health.textContent = estimateRange ? `${estimateRange.min ?? estimateRange[0]}–${estimateRange.max ?? estimateRange[1]} dní` : (device.battery_attention ? "Vyžaduje pozornosť" : (device.health_state || "Odhad nie je dostupný")); row.append(health);
-      const replaced = document.createElement("td"); replaced.textContent = device.last_replaced_at ? new Date(device.last_replaced_at).toLocaleDateString() : "Nezaznamenaná"; row.append(replaced);
-      const manage = document.createElement("td");
-      const detail = document.createElement("details"); const summary = document.createElement("summary"); summary.textContent = "Detail"; detail.append(summary);
-      const actions = this.actions(detail);
-      const estimate = device.battery_estimate;
-      this.text(card, `${device.battery_type || "Typ neurčený"} × ${device.battery_quantity || 1} · posledná výmena: ${device.last_replaced_at || "nezaznamenaná"}`, "meta");
-      this.text(card, estimate?.remaining_days_range ? `Odhad výdrže: ${estimate.remaining_days_range.join("–")} dní` : "Odhad výdrže zatiaľ nie je dostupný.", "meta");
-      const type = this.textInput(actions, "Typ batérie", device.battery_type || "");
-      const quantity = this.numberInput(actions, "Počet", 1, 20, device.battery_quantity || 1);
-      const power = this.select(actions, "Napájanie batérie", ["replaceable_battery", "rechargeable", "unknown"]);
-      power.value = device.power_type || "replaceable_battery";
-      const model = document.createElement("select");
-      model.setAttribute("aria-label", "Model z katalógu");
-      const noModel = document.createElement("option");
-      noModel.value = "";
-      noModel.textContent = "Bez väzby na model";
-      model.append(noModel);
-      this.items.forEach((item) => {
-        const option = document.createElement("option");
-        option.value = item.model_id;
-        option.textContent = `${item.manufacturer || ""} ${item.model || ""} — ${item.default_battery_type || "?"} × ${item.default_battery_quantity || 1}`;
-        model.append(option);
-      });
-      model.addEventListener("change", () => {
-        const choice = this.items.find((item) => item.model_id === model.value);
-        if (!choice) return;
-        type.value = choice.default_battery_type || "";
-        quantity.value = String(choice.default_battery_quantity || 1);
-        if (["replaceable_battery", "rechargeable", "unknown"].includes(choice.power_hint)) power.value = choice.power_hint;
-      });
-      actions.append(model);
-      this.button(actions, "Uložiť priradenie", async () => {
-        const request = { type: "sensor_guardian/update_battery", device_id: device.device_id, battery_type: type.value, battery_quantity: Number(quantity.value), power_type: power.value };
-        if (model.value) request.model_id = model.value;
-        await this.command(request);
-        await this.refresh();
-      });
-      if (device.manufacturer && device.model && !device.model_id) {
-        this.button(actions, "Pridať predvyplnený model a priradiť", async () => {
-          const added = await this.command({
-            type: "sensor_guardian/add_model",
-            manufacturer: device.manufacturer,
-            model: device.model,
-            battery_type: type.value,
-            battery_quantity: Number(quantity.value),
-            power_type: power.value,
-          });
-          await this.command({
-            type: "sensor_guardian/update_battery",
-            device_id: device.device_id,
-            battery_type: type.value,
-            battery_quantity: Number(quantity.value),
-            power_type: power.value,
-            model_id: added.model_id,
-          });
-          await this.refresh();
-        });
-      }
-      manage.append(detail); row.append(manage); body.append(row);
-      });
-      table.append(body); wrap.append(table); content.append(wrap);
-      const sorting = this.select(content, "Zoradiť batérie", ["name", "identifier", "battery_level", "health_state"]);
-      sorting.value = this.batterySort || "name";
-      sorting.addEventListener("change", () => { this.batterySort = sorting.value; this.paint(); });
-    }
-    if (this.items.length) {
-      this.text(content, "Katalóg batérií", "title");
-      const wrap = document.createElement("div"); wrap.className = "table-wrap";
-      const table = document.createElement("table"); table.innerHTML = "<thead><tr><th>Výrobca</th><th>Model</th><th>Batéria</th><th>Zdroj</th></tr></thead>";
-      const body = document.createElement("tbody");
-      this.items.forEach((item) => { const row = document.createElement("tr");
-        [item.manufacturer || "—", item.model || "—", `${item.default_battery_type || "Neurčená"} × ${item.default_battery_quantity || 1}`, item.source || "lokálny"].forEach(value => { const cell = document.createElement("td"); cell.textContent = value; row.append(cell); }); body.append(row); });
-      table.append(body); wrap.append(table); content.append(wrap);
-    }
-    if (cycles.length) {
-      const card = this.card(content, "Posledné výmeny");
-      cycles.forEach((cycle) => this.text(card, `${cycle.device_id}: ${cycle.battery_type || "batéria"} × ${cycle.battery_quantity || 1}, ${cycle.started_at || "dátum neznámy"} · ${cycle.provenance || "bez zdroja"}`, "meta"));
-    }
-  }
-
-  renderSettings(content) {
-    const card = this.card(content, "Nastavenia a migrácia");
-    const settings = this.page?.settings || {};
-    const migration = this.page?.migration || {};
-    this.text(card, `Úvodná tolerancia: ${settings.startup_grace_minutes ?? "predvolené"} min · upozornenie pred výmenou: ${settings.replacement_warning_days ?? "predvolené"} dní · nízka batéria: ${settings.low_battery_threshold ?? "predvolené"}%`, "meta");
-    this.text(card, `Importy potvrdené: ${migration.receipt_count || 0} · nevyriešené záznamy na kontrolu: ${migration.unmatched_import_count || 0}`, "meta");
-    const actions = this.actions(card);
-    const grace = document.createElement("input");
-    grace.type = "number";
-    grace.min = "0";
-    grace.max = "1440";
-    grace.value = String(settings.startup_grace_minutes ?? 5);
-    grace.setAttribute("aria-label", "Úvodná tolerancia v minútach");
-    actions.append(grace);
-    const notifications = this.select(actions, "Upozornenia v Home Assistant", ["enabled", "disabled"]);
-    notifications.value = settings.notifications_enabled === false ? "disabled" : "enabled";
-    const warning = document.createElement("input");
-    warning.type = "number";
-    warning.min = "1";
-    warning.max = "90";
-    warning.value = String(settings.replacement_warning_days ?? 14);
-    warning.setAttribute("aria-label", "Upozornenie pred výmenou v dňoch");
-    actions.append(warning);
-    const threshold = this.numberInput(actions, "Hranica nízkej batérie v percentách", 1, 100, settings.low_battery_threshold ?? 20);
-    this.button(actions, "Uložiť nastavenia", async () => {
-      await this.command({ type: "sensor_guardian/update_settings", values: {
-        startup_grace_minutes: Number(grace.value),
-        notifications_enabled: notifications.value === "enabled",
-        replacement_warning_days: Number(warning.value),
-        low_battery_threshold: Number(threshold.value),
-      }});
-      await this.refresh();
-    });
-    this.button(actions, "Pripraviť náhľad Battery Notes", async () => {
-      this.preview = await this.command({ type: "sensor_guardian/import_preview" });
-      await this.refresh();
-    });
-    if (this.preview) {
-      const preview = this.card(content, "Náhľad importu");
-      const source = this.preview.source_available ? "Battery Notes je dostupný ako zdroj na jednorazový import." : "Battery Notes sa nenašiel; Strážca môže fungovať nezávisle.";
-      this.text(preview, `${source} Katalóg: ${this.preview.catalogue_model_count}; párované zariadenia: ${this.preview.matched_device_count}; nevyriešené: ${this.preview.unmatched_count}; výmeny: ${this.preview.cycle_count}; vzorky: ${this.preview.sample_count}.`, "meta");
-      this.text(preview, this.preview.history_note || "", "meta");
-      if (this.preview.source_available) {
-        const apply = this.actions(preview);
-        this.button(apply, "Použiť tento import", async () => {
-          await this.command({ type: "sensor_guardian/import_apply", receipt_id: this.preview.receipt_id });
-          this.preview = null;
-          await this.refresh();
-        });
-      }
-    }
-  }
-
-  deviceActions(card, item) {
-    const actions = this.actions(card);
-    const mode = this.select(actions, "Režim sledovaného zariadenia", ["battery_and_availability", "availability_only", "battery_only"]);
-    mode.value = item.tracking_mode || "availability_only";
-    const power = this.select(actions, "Napájanie sledovaného zariadenia", ["replaceable_battery", "rechargeable", "mains", "unknown"]);
-    power.value = item.power_type || "unknown";
-    this.button(actions, "Uložiť sledovanie", async () => {
-      await this.command({ type: "sensor_guardian/update_tracking", device_id: item.device_id, tracking_mode: mode.value, power_type: power.value });
-      await this.refresh();
-    });
-    if ((item.recommended_signal_entities || []).length) {
-      this.text(card, "Signálové entity sú vypnuté. Zapni ich pre LQI/RSSI diagnostiku.", "meta");
-      this.button(actions, "Zapnúť odporúčané signálové entity", async () => {
-        if (!window.confirm("Zapnúť odporúčané signálové entity tohto zariadenia v Home Assistant?")) return;
-        await this.command({ type: "sensor_guardian/enable_signal_entities", device_id: item.device_id });
-        await this.refresh();
-      });
-    }
-    if (["battery_and_availability", "battery_only"].includes(item.tracking_mode) && item.power_type !== "mains") {
-      this.button(actions, "Označiť výmenu batérie", async () => {
-        const battery = window.prompt("Typ batérie (napr. CR2032)", "");
-        if (battery === null) return;
-        const quantity = Number(window.prompt("Počet batérií", "1") || 1);
-        await this._hass.callService("sensor_guardian", "mark_battery_replaced", {
-          device_id: item.device_id,
-          battery_type: battery,
-          battery_quantity: quantity,
-        });
-        this.status = "Výmena batérie je zaznamenaná.";
-        this.paintStatus();
-      });
-    }
-    this.button(actions, "Odložiť upozornenia", async () => {
-      await this._hass.callService("sensor_guardian", "snooze_device", { device_id: item.device_id });
-      await this.refresh();
-    });
-    this.button(actions, "Obnoviť upozornenia", async () => {
-      await this._hass.callService("sensor_guardian", "resume_device", { device_id: item.device_id });
-      await this.refresh();
-    });
-  }
-
-  confirmCause(card, incidentId) {
-    const actions = this.actions(card);
-    const cause = this.select(actions, "Potvrdiť príčinu", ["unknown", "battery", "connectivity", "gateway_upstream", "integration", "power_or_network"]);
-    this.button(actions, "Potvrdiť", async () => {
-      await this._hass.callService("sensor_guardian", "confirm_incident_cause", { incident_id: incidentId, cause: cause.value });
-      await this.refresh();
-    });
-  }
-
-  async command(message) {
-    try {
-      const result = await this._hass.callWS(message);
-      this.status = "Zmena bola uložená.";
-      this.paintStatus();
-      return result;
-    } catch (error) {
-      this.status = error.message || "Požiadavku sa nepodarilo dokončiť.";
-      this.paintStatus();
-      throw error;
-    }
-  }
-
-  card(parent, title) {
-    const card = document.createElement("article");
-    card.className = "card";
-    card.setAttribute("aria-label", title);
-    this.text(card, title, "title");
-    parent.append(card);
-    return card;
-  }
-
-  text(parent, value, className = "meta") {
-    const node = document.createElement("p");
-    node.className = className;
-    node.textContent = value;
-    parent.append(node);
-    return node;
-  }
-
-  badge(parent, value, problem = false) {
-    const node = document.createElement("span");
-    node.className = `badge${problem ? " problem" : ""}`;
-    node.textContent = value;
-    parent.append(node);
-  }
-
-  actions(parent) {
-    const actions = document.createElement("div");
-    actions.className = "actions";
-    parent.append(actions);
-    return actions;
-  }
-
-  button(parent, label, action) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = label;
-    button.addEventListener("click", () => Promise.resolve(action()).catch(() => {}));
-    parent.append(button);
-    return button;
-  }
-
-  select(parent, label, values) {
-    const select = document.createElement("select");
-    select.setAttribute("aria-label", label);
-    [...new Set(values)].forEach((value) => {
-      const option = document.createElement("option");
-      option.value = value;
-      option.textContent = this.label(value);
-      select.append(option);
-    });
-    parent.append(select);
-    return select;
-  }
-
-  textInput(parent, label, value = "") {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.value = value;
-    input.placeholder = label;
-    input.setAttribute("aria-label", label);
-    parent.append(input);
-    return input;
-  }
-
-  numberInput(parent, label, min, max, value) {
-    const input = document.createElement("input");
-    input.type = "number";
-    input.min = String(min);
-    input.max = String(max);
-    input.value = String(value);
-    input.setAttribute("aria-label", label);
-    parent.append(input);
-    return input;
-  }
-
-  empty(parent, message) {
-    const node = document.createElement("p");
-    node.className = "empty";
-    node.textContent = message;
-    parent.append(node);
-  }
-
-  label(value) {
-    const names = {
-      unknown: "neznáme",
-      available: "dostupné",
-      all: "všetky",
-      battery_data: "batériové zariadenia",
-      unavailable: "nedostupné",
-      recommended: "odporúčanie každého zariadenia",
-      enabled: "upozornenia zapnuté",
-      disabled: "upozornenia vypnuté",
-      not_monitored: "dostupnosť sa nesleduje",
-      superseded: "skupina sa zmenila",
-      source_available_report_pattern_learning: "Zdroj HA je dostupný; interval hlásení sa učí",
-      source_entities_unavailable: "Zdrojové entity HA sú nedostupné",
-      report_pattern_not_periodic: "Zatiaľ chýba spoľahlivý interval hlásení",
-      battery_only_mode: "Režim iba batéria; dostupnosť sa nesleduje",
-      battery: "batéria",
-      connectivity: "spojenie",
-      gateway_upstream: "brána alebo nadradená sieť",
-      integration: "integrácia",
-      power_or_network: "napájanie alebo sieť",
-      healthy: "v poriadku",
-      degraded: "zhoršený stav",
-      stale: "dlho bez hlásenia",
-      offline: "nedostupné",
-      recovering: "obnovuje sa",
-      initializing: "inicializácia",
-      battery_and_availability: "batéria aj dostupnosť",
-      battery_only: "iba batéria",
-      availability_only: "iba dostupnosť",
-      replaceable_battery: "vymeniteľná batéria",
-      rechargeable: "nabíjateľná",
-      mains: "sieťové napájanie",
-      high: "vysoká",
-      medium: "stredná",
-      low: "nízka",
-      none: "žiadna",
-    };
-    return names[value] || String(value);
+  evidenceText(point){
+    const names={battery_level:"Posledná úroveň batérie",native_battery_low:"Natívne varovanie batérie",rssi_dbm:"RSSI",linkquality:"Kvalita spojenia",signal_trend:"Trend signálu",abnormal_drain:"Neobvyklý úbytok",source_entry_unavailable:"Zdrojová integrácia nedostupná",shared_outage_count:"Zariadenia v spoločnom výpadku"};
+    const value=point.value===true?"áno":point.value===false?"nie":String(point.value??"neznáme");
+    return `${names[point.feature]||"Pozorovaný dôkaz"}: ${point.feature==="signal_trend"&&value==="degrading"?"zhoršuje sa":value}${point.timestamp?` · ${ago(point.timestamp)}`:""}`;
   }
 }
-
-if (!customElements.get("sensor-guardian-panel")) {
-  customElements.define("sensor-guardian-panel", SensorGuardianPanel);
-}
+const PANEL_TAG=`sensor-guardian-panel-${UI_VERSION.replaceAll(".","-")}`;
+if(!customElements.get(PANEL_TAG))customElements.define(PANEL_TAG,SensorGuardianPanel);
