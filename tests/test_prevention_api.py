@@ -1,3 +1,6 @@
+from unittest.mock import AsyncMock
+
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.sensor_guardian.models import empty_store_data
@@ -104,6 +107,17 @@ async def test_onboarding_preview_apply_is_idempotent_and_excludes_resolved(
     response = await client.receive_json()
     assert response["success"]
     preview_id = response["result"]["preview_id"]
+    from custom_components.sensor_guardian.onboarding import apply_tracking
+
+    runtime = hass.data["sensor_guardian"][entry.entry_id]
+    original_reconcile = runtime["reconcile_sources"]
+    runtime["reconcile_sources"] = AsyncMock(side_effect=RuntimeError("interrupted"))
+    with pytest.raises(RuntimeError, match="interrupted"):
+        await apply_tracking(hass, runtime, preview_id)
+    receipt = runtime["data"]["settings"]["tracking_receipts"][preview_id]
+    assert receipt["phase"] == "pending"
+    assert not receipt["applied"]
+    runtime["reconcile_sources"] = original_reconcile
     for _ in range(2):
         await client.send_json_auto_id(
             {"type": "sensor_guardian/apply_tracking", "preview_id": preview_id}
@@ -111,6 +125,7 @@ async def test_onboarding_preview_apply_is_idempotent_and_excludes_resolved(
         result = await client.receive_json()
         assert result["success"]
         assert result["result"]["results"][0]["status"] == "tracked"
+        assert result["result"]["phase"] == "complete"
     runtime = hass.data["sensor_guardian"][entry.entry_id]
     assert len(runtime["data"]["devices"]) == 1
     assert runtime["data"]["devices"][0]["source_integration"] == "zha"
