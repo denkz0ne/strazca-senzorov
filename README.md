@@ -9,6 +9,12 @@ The integration is intended to help answer:
 - Does an outage look like a depleted battery, a local connection problem, a shared gateway/integration failure, or is the cause unknown?
 - What should be automated, and what should stay as detail in the integration panel?
 
+## Prevention dashboard 0.2.0
+
+Dashboard for urgent interventions, preventive recommendations and data coverage; compact tracked devices with 7/30/90-day detail charts; actionable battery/availability alerts; reviewed bulk onboarding; global/device settings and secondary battery stock. Explicit uncertainty, dated last-known values and replacement boundaries prevent invented measurements. Native-source observations remain independent of Battery Notes. See [user guide](docs/USER_GUIDE.md) and [approved design](docs/superpowers/specs/2026-10-07-prevention-first-ui-design.md).
+
+Store schema 1.2 preserves older histories with a pre-upgrade backup. Backend/frontend version checks make stale installation visible. CI checks real packaged assets with simulated HA data; the owner still performs HACS download and HA restart.
+
 ## Product decisions captured so far
 
 - Battery Notes is a **one-time migration source** for its device model library and any per-device settings/history that can be recovered. It is not a runtime dependency. Once migration has been checked and Strážca is deployed, Battery Notes is intended to be removed.

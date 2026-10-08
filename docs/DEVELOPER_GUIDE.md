@@ -77,3 +77,18 @@ Verzia integrovanej distribúcie je `custom_components/sensor_guardian/manifest.
 5. Aktualizuj release checklist a progress s presnými CI run/commit odkazmi. Nevydávaj tag bez explicitného rozhodnutia maintainer-a.
 
 Hotfix musí zdokumentovať: symptom a dopad, reprodukčné kroky alebo dôkaz, príčinu, minimálnu opravu, riziko migrácie/dát, testy/CI run a verziu hotfixu. Po nasadení doplň konkrétny výsledok zo skutočnej HA inštalácie; CI samo osebe nie je dôkaz live opravy.
+
+## Prevention API and frontend (0.2.0)
+
+Added modules: history, analytics, onboarding, prevention_api, notification_policy and www/frontend/*.js. Legacy entities/actions and get_data remain compatible. Admin-only WebSocket additions:
+
+| Read commands | Mutations |
+| --- | --- |
+| get_dashboard, get_devices, get_device_detail (7/30/90 days) | preview_tracking → apply_tracking |
+| get_alerts (active/closed), get_candidates | save_settings, update_device_rules, set_tracking_active |
+| get_settings, get_stock, get_diagnostics | acknowledge_alert (minutes=0 read / >0 snooze), save_stock |
+| device detail native source choices | update_sources, reset_report_profile, load_native_history |
+
+Lists return bounded pages (query/offset/limit); detail exposes actual series/cycles/source choices and a rule allow-list. Cross-device/helper source overrides are rejected. Settings reject invalid ranges/quiet-hours pairs. Nullable device rule fields remove overrides and inherit global values. Tracking previews last 15 minutes and accept at most 100 IDs; source fingerprint changes block the entire batch before insertion. Pending receipts contain consented signal changes and retry completion after a failure. No unconsented disabled entity is enabled.
+
+Browser regression: `cd tests/frontend && npm ci && npx playwright install chromium && npm test`. The test serves actual packaged modules against mocked HA responses. Python/HA authoritative tests run in GitHub Actions/Linux/Python 3.14; Windows checks cannot replace this. Never claim owner installation from CI. Always compare HACS installed/available ref, panel/backend version and fresh owner logs before reporting live success.

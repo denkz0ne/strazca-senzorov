@@ -1,104 +1,75 @@
-# Používateľský návod
+# Používateľský návod — 0.2.0
 
-Tento návod opisuje aktuálnu verziu z predvolenej vetvy `main`. Projekt zatiaľ nemá stabilné vydanie; názvy a umiestnenie položiek sa môžu medzi verziami meniť. Ak sa správanie v tvojej HA inštalácii líši od návodu, rozhodujúce je správanie konkrétnej verzie a treba ho nahlásiť podľa [podpory a riešenia problémov](#riešenie-problémov).
+Strážca pomáha predísť výpadku batériového zariadenia, nájsť nedostupné zariadenia a vysvetliť pravdepodobnú príčinu. Stav HA, batériové údaje a istota odhadu sú samostatné informácie. Chýbajúca hodnota nie je nula ani potvrdenie správnej funkcie.
 
-Navigácia sekcií a vyhľadávanie zostávajú počas rolovania dostupné. Na úzkom displeji možno taby posúvať vodorovne a zoznamy tabuliek majú vlastný posun.
+## Aktualizácia cez HACS
 
-## Aktualizácia opravy 0.1.1
+1. Zálohuj konfiguráciu HA a exportuj údaje Strážcu cez Nastavenia → Jednorazový import a zálohy.
+2. V HACS otvor repozitár `denkz0ne/strazca-senzorov`. Použi predvolenú vetvu `main` a aktualizuj alebo znovu stiahni integráciu.
+3. Reštart vykonaj sám cez HA. Potom obnov stránku panelu.
+4. V Nastaveniach over frontend aj backend **0.2.0**, schému **1.2** a čas posledného vyhodnotenia. Rozdiel verzií panel oznamuje.
+5. Skontroluj jedno známe batériové a jedno sieťové zariadenie. Porovnaj batériu/signál s pôvodnými HA entitami. Over, že zostali zariadenia, výmeny a história.
 
-Verzia 0.1.1 opravuje chýbajúce batériové percentá a nesprávne zdroje z pôvodnej verzie. Po HACS aktualizácii a reštarte sa existujúce zdroje prekontrolujú automaticky; zariadenia nemusíš odstraňovať a znovu pridávať. Pred prvou opravou vzniká oddelená interná záloha pôvodných záznamov. Výmeny, typy batérií a explicitné používateľské voľby zostávajú zachované. Staré chybné odporúčanie „iba batéria“ sa pri preukázane nesprávnej väzbe zmení na „batéria aj dostupnosť“; správne ručne nastavený režim ostáva.
+Pred prvou migráciou staršej schémy sa vytvorí interná záloha. Zálohy schémy 1.1 možno obnoviť do 1.2. Kódové a prehliadačové kontroly na GitHube nenahrádzajú tento krok na tvojej HAOS inštalácii.
 
-V **Prehľade** je percento batérie a signál priamo v tabuľke. Rozbaľ detail pre počty vzoriek, vysvetlenie stavu a zmenu režimu/napájania cez **Uložiť sledovanie**. Chybne batériová sieťová zásuvka sa pri oprave pôvodnej väzby na napätie preklasifikuje na sledovanie dostupnosti zo siete.
+## Prehľad
 
-Pri vypnutých signálových entitách panel ukáže dôvod a tlačidlo **Zapnúť odporúčané signálové entity**. Zapnutie vyžaduje tvoje potvrdenie a týka sa iba signálových entít daného sledovaného zariadenia. Prvý skutočný LQI/RSSI údaj môže prísť až po obnovení entity zdrojovou integráciou.
+Úvodný dashboard má súhrny nedostupných zariadení, potrebných zásahov, prevencie a kvality údajov. Najprv ukazuje zariadenia vyžadujúce zásah, potom preventívne odporúčania, chýbajúce údaje a posledné zmeny dostupnosti. Kliknutím otvoríš príslušný zoznam alebo detail.
 
-Panel obnovuje Prehľad, Batérie a Incidenty približne každých 30 sekúnd. Zachováva rozbalené detaily; počas úpravy formulára neobnovuje aktívne pole. Časy sa zobrazujú lokálne.
+- **Nedostupné:** stav vybraných zdrojov alebo vyhodnotené chýbajúce hlásenia.
+- **Zásah:** nízka batéria, rýchly pokles alebo zhoršená dostupnosť.
+- **Prevencia:** podložený interval výmeny alebo zhoršujúci sa signál. Horizont sa dá upraviť globálne aj pre zariadenie.
+- **Kvalita údajov:** chýbajúci zdroj, nenaučený interval, málo histórie alebo vypnutý signál. Dostupná HA hodnota sama osebe neznamená naučený reportovací profil.
 
-## Čo sa zobrazí po prvom spustení
+Spoločný výpadok sa zobrazuje ako jedna skupina; počet nedostupných zariadení počíta každé zariadenie iba raz.
 
-Panel sa dá používať bez konfigurácie integrácie. Karta **Zariadenia** vyhľadá kandidátov z HA registrov a zobrazí ich návrh sledovania. Samotné objavenie zariadenia ho ešte nezačne sledovať.
+## Zariadenia a detail
 
-- **Prehľad** zostane prázdny, kým aspoň jedno zariadenie nezačneš sledovať.
-- **Zariadenia** obsahujú čakajúcich kandidátov v tabuľke s názvom, `ZB`/`ZBT` označením z mena, oblasťou a pôvodnou HA integráciou. Možno filtrovať a vybrať riadky; **Sledovať vybrané** najprv zobrazí potvrdenie počtu. V rozbaľovacích dôkazoch uvidíš dostupné zdrojové hodnoty. Vypnuté signálové entity sú iba odporúčané a Strážca ich sám nezapne.
-- **Batérie** zobrazujú sledované batériové zariadenia v kompaktnej tabuľke: úroveň, typ a počet batérií, poslednú výmenu, stav a odhad len vtedy, keď história stačí. Priradenie sa upravuje v detaile riadka. Modelový predvolený typ batérie je len návrh; uprav ho podľa skutočne vloženej batérie.
-- **Incidenty** sa naplnia až po spracovaní problému u sledovaného zariadenia.
-- **Nastavenia** obsahujú momentálne podporované prahy a stav importu.
+Zoznam obsahuje iba sledované zariadenia. Má vyhľadávanie, filtre a stránkovanie. Zobrazuje názov z HA, oblasť, pôvodnú integráciu, napájanie, dostupnosť, batériu a signál. Označenie ZB/ZBT sa vyberá z názvu; ak chýba, ostane prázdne. Na mobile sa riadky menia na kompaktné karty.
 
-Keď HA podporuje názov zariadenia, Strážca používa tento názov; interné registry ID zostáva len technickým identifikátorom. Oblasť sa zobrazí, ak ju zariadeniu priradíš v HA. Ak názov obsahuje `ZB###` alebo `ZBT###`, panel ho ukáže osobitne; inak nechá bunku prázdnu.
+Detail zobrazuje stav, odporúčanie, čas batériového pozorovania, interval výdrže a jeho istotu. Grafy ponúkajú 7/30/90 dní skutočných pozorovaní batérie, napätia, signálu a dostupnosti. Nevymýšľajú merania v medzerách. Zaznamenané výmeny oddeľujú batériové cykly. Starší údaj je označený ako posledný známy; po potvrdenej výmene sa čaká na nový údaj, nie na percento starej batérie.
 
-Pri novom vhodnom zariadení sa obnoví jedno natívne upozornenie HA s počtom čakajúcich kandidátov; odznak sa zobrazuje pri Upozorneniach. HA neposkytuje podporovaný číselný odznak pri konkrétnom vlastnom paneli. Sledované a ignorované zariadenia sa z kandidátov skryjú. Navigácia a vyhľadávanie ostávajú počas rolovania dostupné.
+V detaile môžeš upraviť režim sledovania, napájanie, prahy a kritickosť. Prázdny individuálny prah dedí globálne nastavenie. Pozastavenie zachová históriu; obnovenie vracia pôvodný režim. Pokročilé zdroje umožňujú vybrať iba vhodné natívne entity daného zariadenia alebo obnoviť automatický výber. Reset reportovacieho profilu nemaže výmeny ani batériovú históriu.
 
-## Začni s jedným zariadením
+**Výmenu zaznamenaj až po fyzickej výmene.** Nabíjanie nie je výmena. Typ a počet batérií sú pomocné informácie pre zásoby. Odhad výdrže vzniká z reportov a cyklov konkrétneho zariadenia, nie zo všeobecnej životnosti CR2032.
 
-1. Otvor **Zariadenia** alebo natívne upozornenie a vyhľadaj kandidáta podľa názvu, oblasti či integrácie.
-2. Skontroluj dostupné dôkazy: batériová úroveň, `battery low`, napätie, dostupnosť alebo signál. Vypnuté signálové entity sú iba odporúčané; Strážca ich sám nezapne.
-3. Vyber režim:
-   - **Batéria aj dostupnosť** pre batériové zariadenie, ktoré chceš monitorovať oboma spôsobmi.
-   - **Iba batéria** ak ťa zaujíma batéria a zariadenie nemá spoľahlivý pravidelný report.
-   - **Iba dostupnosť** pre sieťovo napájané zariadenie alebo zariadenie bez batériových údajov.
-4. Vyber typ napájania. Pri batériovom režime skontroluj alebo nastav typ a počet batérií v karte **Batérie**.
-5. Pri jednom zariadení ho označ checkboxom a stlač **Sledovať vybrané**. Potvrď počet. Zariadenie sa objaví v **Prehľade**; pri problémoch sa môže vytvoriť incident.
-6. Hromadný výber sa vykonáva len nad kandidátmi, ktoré sú momentálne načítané; najprv over niekoľko reprezentatívnych zariadení a správnosť zdrojových entít.
+## Upozornenia
 
-**Ignorovať** skryje kandidáta z aktuálnych odporúčaní. Nie je to vypnutie zdrojových HA entít.
+Sekcia obsahuje aktívne alebo aj uzavreté problémy, dôkazy a postihnuté zariadenia. Batériový problém je nezávislý od dostupnosti. Neznáma príčina znamená nedostatočné alebo protichodné dôkazy; potvrdenú príčinu dostupnosti môžeš zaznamenať ručne.
 
-## Čo znamenajú stavy a odhad príčiny
+- **Potvrdiť prečítanie:** zastaví opakovanie aktuálneho upozornenia.
+- **Odložiť:** dočasne odloží doručenie; po uplynutí sa nevyriešený problém môže znovu ozvať. Zber údajov pokračuje.
+- **Obnoviť upozornenia:** ukončí odloženie zariadenia.
+- **Tiché hodiny:** používajú časové pásmo HA. Kritické zariadenie je explicitná výnimka, ale rešpektuje ručné odloženie a vypnuté notifikácie.
 
-Stav zdravia a pravdepodobná príčina sú samostatné informácie. Strážca používa `initializing`, `healthy`, `degraded`, `stale`, `offline`, `recovering`, `paused` a `unknown`. Presné prahy závisia od naučeného reportovacieho profilu a explicitnej dostupnosti zdroja.
+Opakovanie neprečítaných upozornení sa nastavuje globálne. HA udalosti pre automatizácie zostávajú oddelené od doručovania natívnych upozornení. Pri vzniku spoločného výpadku sa samostatné hlásenia nahradia skupinou.
 
-Režim **Iba batéria** má stav `not_monitored` („dostupnosť sa nesleduje“). Pri zariadení bez osobitného connectivity senzora sa používa dostupnosť vybraných pôvodných HA entít. Hodnota `off` pri zásuvke alebo pohybovom senzore znamená dostupnú entitu; `unavailable` je dôkaz nedostupnosti. Kým neexistuje spoľahlivá periodicita, „v poriadku“ znamená dostupný zdroj HA, nie potvrdenie nového rádiového paketu. Panel túto hranicu vysvetľuje.
+## Pridať zariadenia
 
-Príčiny môžu byť `battery`, `connectivity`, `gateway_upstream`, `integration`, `power_or_network` alebo `unknown`. `unknown` znamená, že podklady nestačia alebo si odporujú. Body v diagnostike sú interné dôkazové body, nie percentuálna pravdepodobnosť.
+Noví kandidáti sa nachádzajú v samostatnej sekcii s počtom čakajúcich zariadení. Natívne upozornenie HA tiež informuje o čakajúcich kandidátoch. HA neposkytuje podporovaný číselný odznak pri konkrétnom vlastnom paneli.
 
-`last_reported` znamená, že integrácia zdrojovej entity zapísala jej stav. Samo osebe nedokazuje, že zariadenie práve vysielalo cez rádio. Ak integrácia publikuje uložený stav, Strážca to nemusí vedieť rozlíšiť bez špecifického adaptéru.
+1. Vyhľadaj a označ jedno alebo viac zariadení.
+2. Skontroluj odporúčaný režim a napájanie; sieťové zariadenie nemá dostať batériový režim.
+3. Voliteľne výslovne povoľ odporúčané signálové entity. Bez súhlasu zostávajú vypnuté.
+4. Klikni **Skontrolovať výber**, over zdroje a potom **Začať sledovať**.
+5. Skontroluj výsledok každého riadka. Ak sa zdroje od náhľadu zmenili, celý výber sa zablokuje a treba nový náhľad. Opakovanie dokončuje prerušenú operáciu bez duplikovania zariadení.
 
-## Batérie a výmena
+Sledované a ignorované zariadenia sa skryjú z kandidátov. Nové HA registry ID po opätovnom párovaní je nový kandidát.
 
-- Katalóg zariadení poskytuje model a typ/počet batérií, nie garantovanú životnosť.
-- Odhad sa učí z úrovní batérie a výmen na konkrétnom zariadení. Pri málo dátach môže byť odhad prázdny alebo nízkej dôveryhodnosti.
-- Skok úrovne batérie môže byť iba kandidát na výmenu. Potvrď výmenu až po fyzickej výmene.
-- Nabitie nabíjateľnej batérie sa neeviduje ako výmena.
-- Pri sieťovom napájaní sa batériové odhady nepoužívajú.
+## Nastavenia, história a zásoby
 
-Prudký pokles môže vyvolať upozornenie skôr než vznikne odhad: aspoň 10 percentuálnych bodov za najmenej jeden deň s tempom aspoň 3 body/deň v poslednom týždni. Je to dôvod skontrolovať batériu, nie potvrdenie poruchy ani garantovaný termín vybitia. Aktuálny trend sa počíta iba z aktuálneho výmenného cyklu.
+Globálne nastavenia zahŕňajú prah batérie, preventívny horizont, toleranciu po štarte, stabilnú obnovu, notifikácie, tiché hodiny, opakovanie a uchovávanie histórie 30–730 dní. Signál starší než 14 dní sa zhŕňa do denných priemerov. Batériové vzorky sú obmedzené osobitne pre každé zariadenie; jeden starý posledný údaj sa zachová s dátumom.
 
-Incidenty a potreba pozornosti batérii vytvárajú jedno natívne HA upozornenie na incident/zariadenie. Výpadok sa opakovane neoznamuje pri každej kontrole a upozornenie sa po stabilnej obnove odstráni. V **Nastaveniach** môžeš natívne upozornenia vypnúť; udalosti pre automatizácie ostávajú aktívne. Existujúce upozornenie môžeš aj ručne zrušiť v HA.
+Voliteľné načítanie natívnej histórie využíva dostupný Recorder, najviac 90 dní a 600 záznamov na zdroj. Nedostupný Recorder alebo purgovaná história nevytvoria falošné merania. Podrobnosti vysvetlia, že história je prázdna, čiastočná alebo nedostupná. Bez ďalších reportov nie je možné spoľahlivo predpovedať výdrž.
 
-Použi akciu `sensor_guardian.mark_battery_replaced` po výmene, aby sa zaznamenal nový cyklus a voliteľne typ, počet, značka a dôvod. Akcia je idempotentná pre rovnaký záznam výmeny.
+**Batérie a zásoby** sú vedľajšia pomôcka v Nastaveniach: typy a počty vložených batérií, potvrdená spotreba za 90 dní, ručná zásoba a minimum. Nabíjanie sa nepočíta ako spotrebovaná batéria. Katalóg je pomocný údaj, nie podmienka sledovania.
 
 ## Jednorazový import Battery Notes
 
-Battery Notes slúži iba ako migračný zdroj. V **Nastavenia** otvor náhľad importu, skontroluj spárované a nevyriešené zariadenia, rekonštruované cykly a neisté dáta, potom import aplikuj. Import najprv vytvorí oddelenú zálohu a ukladá potvrdenie o zdroji. Opakovaný import nemá duplikovať rovnaké záznamy.
-
-Battery Notes odstráň až po tom, čo skontroluješ výsledok importu, zariadenia a výmeny batérií v Strážcovi a overíš chod po reštarte. Strážca ho sám neodinštaluje a po importe ho nepotrebuje.
-
-## Automatizácie
-
-Každé sledované zariadenie vytvára najviac tri Strážca entity: `guardian_problem`, `guardian_status` a pri batériovom sledovaní aj `battery_attention`. Vytváranie entít prebieha až po výbere sledovania. Názvy entít si pozri v **Nastavenia → Zariadenia a služby → Entity**; konkrétne ID vytvorí HA podľa mena a kolízií v registri.
-
-Strážca vysiela udalosti `sensor_guardian_incident`, `sensor_guardian_recovered`, `sensor_guardian_battery_attention` a `sensor_guardian_battery_replaced`. Akcie sú dostupné pod doménou `sensor_guardian`: `mark_battery_replaced`, `confirm_incident_cause`, `snooze_device` a `resume_device`. Kompletné polia a príklady sú v [rozhraní Home Assistant](HOME_ASSISTANT.md).
-
-## Záloha, aktualizácia a návrat
-
-Pred aktualizáciou vytvor úplnú zálohu HA vrátane konfigurácie a úložiska. Pre túto inštaláciu sleduj v HACS vlastné repository `denkz0ne/strazca-senzorov` na predvolenej vetve `main`: v HACS otvor integráciu Strážca senzorov a zvoľ **Update**, keď je dostupný. HACS bez GitHub release/tagu sleduje obsah predvolenej vetvy; stabilné vydanie zatiaľ neexistuje. Po dokončení sťahovania reštartuj Home Assistant a obnov stránku prehliadača naplno.
-
-Po reštarte skontroluj **Nastavenia → Systém → Logy**. Pri tejto oprave nesmie Strážca hlásiť blokujúce synchronné čítanie `battery_models.json`, chybu bezpečnosti vlákien pri `async_create_task` ani „coroutine was never awaited“. Úspešný štart over aj otvorením panelu a obnovením zoznamu zariadení. Ak HACS aktualizáciu neponúka, skontroluj, že repository je pridané ako vlastné HACS repository a sleduje `main`; neinštaluj náhodný ZIP ani inú vetvu.
-
-Battery Notes zatiaľ ponechaj nainštalované. Odstráň ho až po náhľade, zálohe, aplikovaní a kontrole importu vrátane reštartu Strážcu.
-
-Neukladaj používateľské dáta ručne do súborov integrácie. Persistované dáta spravuje Strážca cez HA Store.
-
-Ak aktualizácia zlyhá, najprv zachovaj HA zálohu a logy. Vráť predchádzajúcu verziu integrácie z tej istej dôveryhodnej vetvy/commitu a reštartuj. Nevymazávaj `.storage` ani záznamy integrácie ako prvý krok.
+V Nastaveniach otvor **Jednorazový import a zálohy**. Najprv zobraz náhľad, exportuj zálohu, potom potvrď import. Import zachová dohľadateľné výmeny, typy a dostupnú históriu s pôvodom údajov; nepredpokladá úplný archív výmen. Skontroluj nezhodné záznamy. Battery Notes odstráň až po overení importu a následného fungovania Strážcu. Runtime používa pôvodné entity zariadení a nevyžaduje Battery Notes.
 
 ## Riešenie problémov
 
-Ak sa po HACS aktualizácii a reštarte zobrazuje pôvodný panel bez stĺpcov Batéria/Signál, over skutočne nainštalovaný commit a vetvu HACS. Dňa 2026-10-07 bolo preukázané, že repository stále malo predvolenú vetvu `codex/sensor-guardian-mvp`; HACS preto ponúkalo znova starý `fd0c0d8`. Predvolená vetva repository bola opravená na `main` a HACS informácie obnovené. HACS následne ponúklo aktualizáciu na `0df65e8` (runtime verzia 0.1.1). Samotné zlúčenie PR nepreukazuje, že HACS stiahlo správny zdroj alebo že HA načítalo nový kód.
+Pri chýbajúcich údajoch skontroluj verzie, čas posledného vyhodnotenia a detail → zdroje. Porovnaj natívny stav entity v HA; vypnutá alebo neexistujúca entita neposkytuje merania. Validný obnovený HA stav nie je dôkaz nového rádiového paketu. Ak problém trvá, prilož anonymizovanú diagnostiku a čerstvý log HA k issue. Nezverejňuj tokeny ani kompletnú konfiguráciu.
 
-1. Over, že priečinok `custom_components/sensor_guardian` obsahuje `manifest.json` a `www/panel.js`.
-2. V **Nastavenia → Systém → Logy** vyhľadaj `sensor_guardian` a skopíruj prvú súvisiacu chybu aj traceback.
-3. Obnov panel a skontroluj, či si v správnej karte. Prázdny **Prehľad** je očakávaný, ak ešte nič nesleduješ.
-4. Ak zariadenie nemožno sledovať, obnov **Zariadenia** a over, že kandidát stále existuje a HA device registry ho ešte obsahuje.
-5. Pri chýbajúcich štatistikách over, či existujú použiteľné zdrojové entity a či má zariadenie dostatočnú históriu. Príčina `unknown` je očakávaná pri nedostatku dôkazov.
-6. Pri chybe importu zachovaj pre-import zálohu; neprerušuj ho vymazaním Battery Notes ani úložiska.
-
-Pri nahlásení problému pridaj verziu Strážcu z `manifest.json`, Core verziu, vetvu/commit, kroky na reprodukciu, relevantný log a očakávaný/skutočný výsledok. Pred zdieľaním odstráň tokeny, adresy a osobné dáta.
+Minimálne HA entity, udalosti a akcie pre automatizácie sú popísané v [HA rozhraní](HOME_ASSISTANT.md). Detailné štatistiky zostávajú v paneli.

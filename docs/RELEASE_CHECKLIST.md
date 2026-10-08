@@ -26,3 +26,12 @@ This checklist is a gate for a future tagged release. The current `main` branch 
 - [ ] Update changelog, documentation, version and supported Core floor.
 - [ ] Confirm the intended installation/deployment path with the repository owner.
 - [ ] Create and push a version tag only after the release is explicitly requested and approved.
+
+## Prevention dashboard 0.2.0 owner gate
+
+- [ ] HACS uses `main`, offers the merged 0.2.0 commit, and owner downloads it.
+- [ ] After owner restart, Settings identifies backend/frontend 0.2.0, schema 1.2 and recent evaluation; no mismatch banner.
+- [ ] Compare a battery and mains device against native entities; verify old history, replacement cycles and areas/names survive.
+- [ ] Check 7/30/90-day detail, versioned assets, mobile layout and retained edits on the real browser.
+- [ ] Exercise preview/apply/new discovery, declined/consented signal enablement, unavailable Recorder, timed snooze/expiry, repetition and grouped notices.
+- [ ] Owner confirms live behavior before stable tag/release. CI/mocked browser checks are recorded separately.

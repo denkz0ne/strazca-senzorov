@@ -60,6 +60,7 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     await page.getByRole("tab", { name: "Zariadenia", exact: true }).click();
     await page.getByRole("button", { name: "zb65.stmievac", exact: true }).click();
     await page.getByRole("heading", { name: "zb65.stmievac", exact: true }).waitFor();
+    await page.getByRole("heading", { name: "História výmen batérie", exact: true }).waitFor();
     assert.equal(await page.getByText("45 %", { exact: true }).first().isVisible(), true);
     await page.getByLabel("Nízka batéria (%)").fill("17");
     await page.evaluate(() => document.querySelector("sensor-guardian-panel-0-2-0").autoRefresh());
@@ -88,6 +89,16 @@ const { chromium } = require(process.env.PLAYWRIGHT_MODULE || "playwright");
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
     assert.deepEqual(errors, []);
     if (process.env.PANEL_SCREENSHOT) await page.screenshot({ path: process.env.PANEL_SCREENSHOT, fullPage: true });
+    if (process.env.PANEL_PREVIEW_PREFIX) {
+      await page.setViewportSize({width:1440,height:1050});
+      await page.getByRole("tab",{name:"Prehľad",exact:true}).click();
+      await page.getByRole("heading",{name:"Čo potrebuje zásah",exact:true}).waitFor();
+      await page.screenshot({path:process.env.PANEL_PREVIEW_PREFIX+"-dashboard.png",fullPage:true});
+      await page.getByRole("tab",{name:"Zariadenia",exact:true}).click();
+      await page.getByRole("button",{name:"zb65.stmievac",exact:true}).click();
+      await page.getByRole("heading",{name:"História výmen batérie",exact:true}).waitFor();
+      await page.screenshot({path:process.env.PANEL_PREVIEW_PREFIX+"-detail.png",fullPage:true});
+    }
     console.log("PASS: prevention dashboard, detail/form preservation, acknowledgment, blocked/retried onboarding, stock, mobile and module loading.");
   } finally { await browser.close(); await new Promise(resolve => server.close(resolve)); }
 })().catch(error => { console.error(error); process.exit(1); });

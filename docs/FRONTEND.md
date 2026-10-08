@@ -1,76 +1,29 @@
-# Integration panel
+# Frontend — prevention dashboard 0.2.0
 
-The side panel is for detailed management and diagnosis; automations use the smaller HA entity/event interface.
+The panel's primary purpose is preventing battery-device outages and explaining unavailable devices. Model data and stock are secondary settings utilities.
 
-## Tabs
+## Navigation and flows
 
-1. **Overview** — tracked devices, area, health, source/transport, battery attention, last seen and active incident. Filters for problems, battery devices, offline/stale, protocol and area. Device detail drawer: health timeline, battery graph/cycle, incident history and explanation of current evidence. Do not surface temperature, occupancy or unrelated device measurements as Strážca-owned data.
-2. **Batteries** — device battery assignments, battery type catalogue, replacement history, upcoming replacement needs and optional household stock. Adding an unknown model should require minimal input: review prefilled manufacturer/model/source and select battery type; quantity defaults to one and is editable. Applying the choice to all matching models is optional and explicit.
-3. **Devices** — discovery recommendations with match evidence and proposed tracking mode; accept, edit, ignore and undo. Distinguish battery-powered, rechargeable and mains-powered devices. Signal entities that could improve diagnosis can be recommended for enabling here.
-4. **Incidents** — grouped and individual incident timeline, current/previous cause, confidence/evidence, acknowledgement, confirmation/correction and recovery.
-5. **Settings** — notification policy, startup grace, stale/offline thresholds, sampling, model catalogue management, import status, provider support and diagnostics.
+| Section | Purpose |
+| --- | --- |
+| Prehľad | Unique-device counts, intervention, prevention, incomplete coverage, grouped outages and recent transitions |
+| Zariadenia | Tracked-device search/filter/paging, readable names, HA area/provider, battery/signal, shared detail |
+| Upozornenia | Active/closed battery and availability incidents, group membership, evidence, acknowledgment and timed snooze |
+| Pridať zariadenia (count) | Pending native discovery → selection/choices → reviewed preview → revalidated apply → per-row outcome/retry |
+| Nastavenia | Inherited/global rules, delivery policy, history, version/diagnostics, secondary stock/catalogue/migration utilities |
 
-The implemented panel has these five tabs. Battery assignments and tracked battery devices use compact tables; discovery candidates use a selectable, filterable table. Unsupported registry or sensor data stays blank/unknown rather than inferred. Panel remains useful with generic provider data and labels unsupported diagnostics clearly.
+The sticky navigation/search stays accessible. Desktop uses compact tables; tracked devices use cards on mobile. All text is Slovak, generated through DOM textContent; no remote CDN, browser-stored credential or HTML rendering of HA strings.
 
-Runtime repair 0.1.1 displays current battery percentage and signal in Overview columns and adds sample/report counts, learning explanations and editable tracked mode/power in the detail. Bulk tracking defaults to the recommendation shown for each row. Recommended signal entities can be enabled only through an explicit per-device confirmation. Overview/Batteries/Incidents refresh at thirty-second intervals, preserve open details and avoid interrupting focused controls. CI exercises these decisions in Chromium with a simulated HA API; owner live UI validation remains separate.
+Device detail includes actual 7/30/90-day SVG battery/voltage/signal series, availability transitions, replacement history, prediction reasons/confidence, diagnosis, mode/power and nullable rule overrides. Battery charts break at replacement boundaries and known gaps/outages. Initial availability in the chart is explicitly a last-known baseline. Signal daily averages are labeled. Physical packets are never inferred from cached HA state alone.
 
-## Observed current limitations
+## Assets and state
 
-- The **Devices** discovery tab uses the HA device name, area, and source integration when available. Its pending notice uses the native Home Assistant notification badge (one persistent summary); custom panels have no supported per-panel sidebar counter.
-- Overview and Incidents are empty until the user explicitly tracks candidates and incidents occur; discovery by itself does not create tracked records.
-- The visible panel is a first usable management surface, not the final detailed analytics dashboard. Do not document planned controls as shipped until they appear in code and pass UI review.
+`www/panel.js` manages route, query, paging, period, filters, selection and dirty drafts. View modules are in `www/frontend/`: ui, styles, charts, dashboard, devices, detail, alerts, onboarding and settings. `panel.py` serves both asset paths. Module URLs and the root custom-element tag are versioned (0.2.0), preventing an old browser registration from silently handling the new panel. Backend/frontend mismatch and stale evaluations are visible.
 
-## Compact lists and discovery
+Thirty-second refresh skips active editing and onboarding/migration forms. Dirty drafts, focused fields and expanded source details survive deliberate data reloads. Async route results are discarded if superseded. Leaving dirty drafts asks before discarding.
 
-Issues [#11](https://github.com/denkz0ne/strazca-senzorov/issues/11) to [#13](https://github.com/denkz0ne/strazca-senzorov/issues/13) define the compact batteries/devices tables and discovery queue.
+## Contract and verification
 
-The section navigation and search row are sticky during panel scrolling; tables have their own horizontal scrolling area and sticky column headers. Tab buttons remain horizontally scrollable on narrow screens.
+Admin-only authenticated HA WebSocket endpoints provide bounded DTOs, native sources and permitted mutations. See [developer guide](DEVELOPER_GUIDE.md). Preview lasts 15 minutes; registry source changes block the batch. Receipt phases persist the selected signal enablement and permit completing interrupted operations. Explicit signal activation requires consent.
 
-The **Batteries** table uses one compact row per tracked battery device and shows readable device name, the optional `ZB###`/`ZBT###` identifier parsed from the name, battery type/quantity, current level, last replacement, concise attention state and remaining-life estimate only when supported by enough history. An unrecognized identifier stays blank. `zbt05-kupelna` displays `ZBT05`. Search and sort cover useful fields; assignment controls are in row details.
-
-The **Devices** list uses the HA display name and assigned area, plus a `ZB###` or `ZBT###` identifier only when present in the name. It shows original integration separately from power/transport, source battery values and reasons, and a prefilled battery model when an exact manufacturer/model match exists. Rows have individual tracking/power choices and checkboxes for confirmed bulk tracking. Filters cover integration, observed battery data, area and native availability. Missing values remain blank/unknown; disabled signal entities are never enabled automatically.
-
-The **Overview** table shows the original HA integration and area for every tracked device, with battery and incident evidence in each row's expandable details.
-
-Discovery derives its pending queue from the persistent HA device/entity registries and stored ignored IDs, so restart/reload does not duplicate candidates. A single actionable persistent notification updates on registry create/update/remove events and shows the exact number of candidates. Home Assistant's supported custom-panel API exposes no per-panel numeric sidebar badge; its native Notifications item shows one badge for this summary notification. The Devices tab also includes its current pending count. A device is never tracked without the user's explicit choice. Re-pairing with a new registry ID is treated as a new candidate; ignored IDs do not suppress a distinct new registry identity.
-
-## MVP packaging and API
-
-The MVP panel is a self-hosted, dependency-free JavaScript custom element in
-`custom_components/sensor_guardian/www/panel.js`. `panel.py` registers it as a
-Home Assistant custom panel and serves the packaged file from the integration;
-no external script CDN or separate Node build step is required. HACS installs and
-updates the integration directory as one unit.
-
-The panel is administrator-only. It uses authenticated Home Assistant WebSocket
-commands and never keeps durable state in the browser. `websocket_api.py`
-provides bounded pages for overview, model catalogue/history, discovery,
-incidents and settings. API serializers use per-section field allow-lists;
-overview omits battery type, entity references and signal details. Settings and
-all write commands validate IDs, page sizes and values.
-
-Write operations cover tracking/dismissing discovery candidates, adding a local
-battery-model record, assigning battery type/quantity per device, updating the
-initial supported settings, and previewing/applying the one-time Battery Notes
-import. Import apply stores a separate pre-import backup first. Replacement,
-cause confirmation, snooze and resume use the same Home Assistant actions exposed
-to automations. Discovery only recommends disabled signal entities; it does not
-enable them.
-
-The first UI release is Slovak, uses native keyboard focus order and semantic
-tab/button/input labels, and adapts to narrow viewports. Unknown cause remains
-visible as “neznáme”; empty catalogues and candidate/incident lists have explicit
-messages. Interaction and layout still need a live Home Assistant browser check
-during release hardening.
-
-The current `hacs.json` declares the display name. It does not certify that an
-install or update has been exercised by HACS; the first-release checklist
-requires a clean install/update and a browser check on a disposable HA instance.
-
-## Interaction principles
-
-- Explain recommendations and cause estimates in ordinary language.
-- Show approximate ranges and confidence for lifetime estimates; no false precision.
-- Keep unknown and insufficient history visible.
-- Make model/library edits local and reversible; preserve per-device overrides.
-- Confirm destructive resets and provide export/backup for migration and data reset.
+`tests/frontend/test_prevention_panel.cjs` serves the actual ES modules to Chromium with simulated HA DTOs and exercises navigation, details, preserved edits, acknowledgment, blocked/retried onboarding, stock, mobile width and an old cached custom-element registration. These are browser integration checks, not proof the owner's HA currently serves these assets. Owner checks are in [release checklist](RELEASE_CHECKLIST.md).

@@ -4,6 +4,15 @@ Changes are recorded here for tagged releases. There is no published release yet
 
 ## Unreleased — MVP development
 
+### 0.2.0 � prevention dashboard and persistent evidence
+
+- Replace the original tabs with intervention/prevention/coverage dashboard, tracked devices, shared detail, alerts, guided onboarding and settings. Battery stock/catalogue are secondary utilities.
+- Add real 7/30/90-day charts, replacement boundaries/history, prediction confidence/reasons, source editing, per-device inherited rules and stale-value dates. Preserve drafts, selection, focus and mobile layouts.
+- Persist signal checkpoints/daily aggregates and health transitions in schema 1.2 with a pre-upgrade backup; optionally fill selected native battery Recorder history. Bound battery history per device, preserving last-known provenance.
+- Add durable revalidated onboarding receipts, explicit signal consent, independent battery alerts, timed snooze/quiet hours/repetition and clean grouped notices. Keep minimal HA entities/actions/events compatible.
+- Version root element/module assets and display active backend/frontend version. Add admin DTO/API, migration compatibility and Chromium regressions; update architecture, data model, guides and owner update checklist.
+- No automatic owner HAOS install/restart and no stable tag/release. Live verification remains issue #10.
+
 ### 0.1.1 — native runtime data repair
 
 - Correct numeric/localized battery classification and exclude Battery Notes/Guardian helpers from runtime sources.

@@ -43,3 +43,7 @@ These are intentionally unresolved; the design should not imply they are settled
 - Should battery stock management be part of initial release or a later enhancement?
 - ~~Device-list identity, bulk selection/filters and original integration display.~~ Compact tables use HA friendly identity, area, and name-derived ZB/ZBT IDs. Bulk track is explicitly confirmed. Unknown power remains unknown unless the user chooses it; generic HA does not reliably expose physical power source.
 - HA does not expose a supported per-custom-panel numeric sidebar badge. Discovery uses one persistent actionable notification (whose native Notifications badge indicates pending work) with the exact pending count in its message. Revisit only if HA adds a supported panel badge API.
+
+## Decisions delivered in 0.2.0
+
+The approved prevention design is implemented: dashboard, separate tracked/candidate lists, device detail/history/rules, independent battery/availability alerts, durable onboarding, delivery policy and secondary battery stock. Schema 1.2 and bounded history are implemented. Future provider-specific packet evidence, labeled confidence calibration and actual long-term prediction quality still require real observations. Owner installation/restart/import/restore checks remain open in issue #10; test data cannot establish those results.
