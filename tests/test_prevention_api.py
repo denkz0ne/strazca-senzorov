@@ -8,6 +8,7 @@ async def test_prevention_reads_preserve_nulls_and_stock_writes(
     hass, hass_storage, hass_ws_client
 ):
     data = empty_store_data()
+    data["settings"]["tracking_receipts"] = {"private": {"device_id": "hidden"}}
     data["devices"].append(
         {
             "device_id": "d",
@@ -34,6 +35,18 @@ async def test_prevention_reads_preserve_nulls_and_stock_writes(
     response = await client.receive_json()
     assert response["success"]
     assert response["result"]["device"]["battery_level"] is None
+    assert "tracking_receipts" not in response["result"]["inherited_rules"]
+    for active in (False, False, True, True):
+        await client.send_json_auto_id(
+            {
+                "type": "sensor_guardian/set_tracking_active",
+                "device_id": "d",
+                "active": active,
+            }
+        )
+        assert (await client.receive_json())["success"]
+    runtime = hass.data["sensor_guardian"][entry.entry_id]
+    assert runtime["data"]["devices"][0]["tracking_mode"] == "battery_only"
     await client.send_json_auto_id(
         {
             "type": "sensor_guardian/save_stock",
