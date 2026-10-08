@@ -1,6 +1,10 @@
 from datetime import UTC, datetime, timedelta
 
-from custom_components.sensor_guardian.history import record_health, record_signal
+from custom_components.sensor_guardian.history import (
+    record_health,
+    record_signal,
+    prune_battery_history,
+)
 from custom_components.sensor_guardian.models import empty_store_data
 
 
@@ -23,3 +27,29 @@ def test_signal_changes_and_checkpoints_are_retained_but_duplicates_are_not():
     assert record_signal(data, "a", "rssi", -80, now=now + timedelta(minutes=2))
     assert record_signal(data, "a", "rssi", -80, now=now + timedelta(hours=2))
     assert len(data["signal_samples"]) == 3
+
+
+def test_battery_retention_is_per_device_and_preserves_last_known_value():
+    data = empty_store_data()
+    now = datetime(2026, 10, 7, tzinfo=UTC)
+    data["settings"]["retention_days"] = 30
+    data["samples"] = [
+        {
+            "sample_id": "old",
+            "device_id": "quiet",
+            "timestamp": (now - timedelta(days=60)).isoformat(),
+            "level_percent": 50,
+        }
+    ]
+    data["samples"] += [
+        {
+            "sample_id": str(i),
+            "device_id": "chatty",
+            "timestamp": (now - timedelta(seconds=5000 - i)).isoformat(),
+            "level_percent": 80,
+        }
+        for i in range(5000)
+    ]
+    assert prune_battery_history(data, now=now)
+    assert any(row["device_id"] == "quiet" for row in data["samples"])
+    assert len([row for row in data["samples"] if row["device_id"] == "chatty"]) == 4096

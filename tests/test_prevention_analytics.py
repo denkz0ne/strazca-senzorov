@@ -106,3 +106,26 @@ def test_stock_uses_confirmed_replacements_not_catalogue_rows_or_recharging():
     assert result[0]["battery_type"] == "AAA"
     assert result[0]["installed_quantity"] == 2
     assert result[0]["used_quantity"] == 2
+
+
+def test_replaced_battery_does_not_display_previous_cycle_as_current():
+    data = empty_store_data()
+    data["devices"] = [
+        {
+            "device_id": "a",
+            "tracking_mode": "battery_only",
+            "power_type": "replaceable_battery",
+            "battery_replaced_at": NOW.isoformat(),
+        }
+    ]
+    data["samples"] = [
+        {
+            "sample_id": "old",
+            "device_id": "a",
+            "timestamp": "2026-10-06T20:00:00+00:00",
+            "level_percent": 5,
+        }
+    ]
+    row = dashboard(data, now=NOW)["devices"][0]
+    assert row["battery_level"] is None
+    assert "battery_source_missing" in row["quality"]["missing"]
