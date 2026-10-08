@@ -77,3 +77,16 @@ The first persisted payload uses Home Assistant Store envelope version `1`, mino
 The versioned `async_export()` envelope contains `version`, `minor_version` and validated `data`, without Home Assistant's internal storage key.
 
 Runtime repair 0.1.1 adds optional device fields source_binding_version (2), source_status, report_profile_entity_id and availability_sentinels. The last field identifies authoritative primary availability sources independently from cached auxiliary telemetry. Existing schema 1.1 containers stay compatible; battery samples/cycles and unknown extension fields survive repair. user_overrides protects explicit source/mode/power choices. A separate pre_source_repair Store captures the first legacy payload before changing bindings.
+
+## Implemented schema 1.2 (0.2.0)
+
+This version supersedes the initial 1.1 envelope described above. Root collections add `signal_samples` (sample_id), `health_history` (transition_id) and `battery_stock` (stock_id). Unknown extension fields and existing device/sample/cycle identities survive migration. Old exports are normalized to 1.2; future minor envelopes are rejected.
+
+- Signal observation: device_id, kind, timestamp, value, provenance; daily aggregates also contain min/max/count/resolution. RSSI and LQI remain separate chart series.
+- Health transition: device_id, timestamp, state, reason and cause. Same-state checks do not create fake transitions.
+- Battery stock: type, manually entered on_hand and minimum. Installation counts derive from tracked assignments; 90-day usage derives only from confirmed replaceable-battery cycles.
+- Device additions: rules, paused_mode, battery_replaced_at, history_source/status, native notification pending flag. Pausing preserves history; replacement prevents using previous-cycle values as current.
+- Incident additions: kind=availability/battery, acknowledged, snoozed_until, event_sent, last_notified_at and persisted delivery state. Confirmed cause survives inferred revisions. Battery warnings are independent of availability incidents.
+- Settings: validated global rules, retention_days (30–730), quiet hours and notification policy; internal tracking_receipts record pending/completed operation phase plus explicitly consented native signal IDs. Public inherited rules are allow-listed, not a dump of internal receipts.
+
+Retention defaults to 365 days. Signal data older than 14 days is reduced to weighted daily summaries. Battery data is capped at 4096 observations independently per device and retained within the configured age; one dated last-known observation is preserved when all data is older. The fleet-wide 10,000 cap is removed. Replacement cycle records are preserved. A battery fact older than seven days is explicitly marked stale; following replacement, the UI awaits a new observation.

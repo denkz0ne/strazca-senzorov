@@ -54,3 +54,9 @@ Keep the data sets logically separated even if stored in one versioned document/
 - An unavailable coordinator/source integration is represented as shared evidence for affected devices.
 - Diagnostics should omit sensitive entity attributes and expose only the evidence needed to explain a result.
 - Storage corruption or migration failure must be reported without discarding the original data; migration should be recoverable and idempotent.
+
+## 0.2.0 prevention implementation
+
+`history.py` stores filtered signal changes/hourly checkpoints and availability transitions; optional Recorder backfill uses selected native percentage entities in chunks of 20, at most 90 days/600 states per entity. It records provenance and never creates replacement cycles. `analytics.py` indexes evidence once per request and returns dashboard/device/detail/alert/stock DTOs with nulls, explainable confidence and quality flags. `prevention_api.py` exposes admin-only operations; `onboarding.py` stores reviewed choices, revalidates registry sources and persists pending/completed operation receipts. `notification_policy.py` separates notification eligibility/repetition from automation events and collection.
+
+The panel shell loads local view modules under `/sensor_guardian/frontend/`. Versioned module URLs and custom-element tags prevent old registration collisions. Backend and frontend identify version 0.2.0; Store moves to schema 1.2 after saving a private pre-migration backup.

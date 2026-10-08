@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 
 from .battery.replacement import confirm_replacement
 from .const import DOMAIN
-from .diagnosis.incidents import revise_cause
+from .diagnosis.incidents import revise_cause, sync_battery_alert
 from .events import BATTERY_REPLACED_EVENT, event_payload
 from .runtime import _merge_data
 
@@ -74,6 +74,9 @@ def async_register_services(hass: HomeAssistant) -> None:
                 item for item in updated["devices"] if item["device_id"] == device_id
             )
             device["battery_attention"] = False
+            device["battery_notice_pending"] = False
+            device["battery_replaced_at"] = cycle["started_at"]
+            sync_battery_alert(updated, device, now=datetime.now(UTC))
             payload = event_payload(device)
             payload.update(
                 {
@@ -136,7 +139,12 @@ def async_register_services(hass: HomeAssistant) -> None:
         for incident in runtime["data"]["incidents"]:
             if device_id in incident["device_ids"] and not incident.get("closed_at"):
                 incident["snoozed_until"] = until
-                incident["acknowledged"] = True
+                incident["notification_state"] = "snoozed"
+                incident["acknowledged"] = False
+                async_dismiss(hass, f"{DOMAIN}_incident_{incident['incident_id']}")
+                if incident.get("kind") == "battery":
+                    device["battery_notice_pending"] = True
+                    async_dismiss(hass, f"{DOMAIN}_battery_{device_id}")
         await runtime["storage"].async_save(runtime["data"])
 
     async def resume(call: ServiceCall) -> None:

@@ -1,6 +1,6 @@
 # Strážca senzorov: rozhranie pre prevenciu a diagnostiku
 
-Stav: návrh na používateľské posúdenie. Existujúci produkčný frontend ani HA konfigurácia sa týmto dokumentom nemenia.
+Stav: používateľ návrh schválil a povolil implementáciu. Vývoj prebieha podľa nadväzujúceho plánu; tento dokument sám nemení HA konfiguráciu.
 
 ## Účel a podmienky úspechu
 

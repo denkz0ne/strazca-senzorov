@@ -26,11 +26,13 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
     """Register integration actions independently of config entry lifecycle."""
     from .discovery_notifier import async_register_discovery_listeners
     from .panel import async_register_panel
+    from .prevention_api import register_prevention_commands
     from .services import async_register_services
     from .websocket_api import async_register_commands
 
     async_register_services(hass)
     async_register_commands(hass)
+    register_prevention_commands(hass)
     async_register_discovery_listeners(hass)
     await async_register_panel(hass)
     return True
@@ -64,6 +66,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     }
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = runtime
     from .battery.collector import async_subscribe_battery
+    from .history import async_fill_native_battery_history, async_subscribe_signals
     from .runtime import async_process_devices, schedule_device_processing
 
     def schedule_save() -> None:
@@ -155,6 +158,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _ids, runtime["report_unsubscribers"] = async_subscribe_reports(
             hass, data["devices"], record_report
         )
+        for unsubscribe in runtime.pop("signal_unsubscribers", []):
+            unsubscribe()
+        runtime["signal_unsubscribers"] = async_subscribe_signals(hass, runtime)
 
     def refresh_battery_subscriptions() -> None:
         for unsubscribe in runtime.pop("battery_unsubscribers", []):
@@ -162,17 +168,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _ids, runtime["battery_unsubscribers"] = async_subscribe_battery(hass, runtime)
 
     def unsubscribe_device_listeners() -> None:
-        for key in ("report_unsubscribers", "battery_unsubscribers"):
+        for key in (
+            "report_unsubscribers",
+            "battery_unsubscribers",
+            "signal_unsubscribers",
+        ):
             for unsubscribe in runtime.pop(key, []):
                 unsubscribe()
         task = runtime.get("_process_task")
         if task and not task.done():
             task.cancel()
+        history_task = runtime.get("history_task")
+        if history_task and not history_task.done():
+            history_task.cancel()
 
     runtime["refresh_report_subscriptions"] = refresh_report_subscriptions
     runtime["refresh_battery_subscriptions"] = refresh_battery_subscriptions
     refresh_report_subscriptions()
     refresh_battery_subscriptions()
+
+    async def load_history() -> bool:
+        return await async_fill_native_battery_history(hass, runtime)
+
+    runtime["load_history"] = load_history
 
     async def reconcile_and_refresh(_event=None) -> None:
         if runtime.get("stopping") or not runtime["ready"]:
@@ -182,6 +200,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             refresh_battery_subscriptions()
             schedule_save()
             schedule_device_processing(hass, runtime)
+            if _event is not None:
+                runtime["history_task"] = hass.async_create_task(load_history())
 
     runtime["reconcile_sources"] = reconcile_and_refresh
     if not hass.is_running:
@@ -211,6 +231,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from .discovery_notifier import async_refresh_discovery_notice
 
     await async_refresh_discovery_notice(hass)
+    if hass.is_running:
+        runtime["history_task"] = hass.async_create_task(load_history())
     return True
 
 
@@ -220,6 +242,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if runtime:
         runtime["stopping"] = True
         task = runtime.get("_process_task")
+        if task and not task.done():
+            task.cancel()
+        task = runtime.get("history_task")
         if task and not task.done():
             task.cancel()
     if not await hass.config_entries.async_unload_platforms(

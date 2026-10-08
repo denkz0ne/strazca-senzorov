@@ -2,4 +2,4 @@
 
 DOMAIN = "sensor_guardian"
 TITLE = "Strážca senzorov"
-VERSION = "0.1.1"
+VERSION = "0.2.0"

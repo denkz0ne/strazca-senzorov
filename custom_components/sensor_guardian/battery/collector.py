@@ -8,7 +8,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from homeassistant.components.persistent_notification import async_create, async_dismiss
+from homeassistant.components.persistent_notification import async_dismiss
 from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.helpers.event import (
     async_track_state_change_event,
@@ -16,7 +16,10 @@ from homeassistant.helpers.event import (
 )
 
 from ..const import DOMAIN
+from ..diagnosis.incidents import sync_battery_alert
 from ..events import BATTERY_ATTENTION_EVENT, event_payload
+from ..history import parse_time, prune_battery_history
+from ..notification_policy import allowed, battery_notice
 from ..runtime import schedule_device_processing
 from .estimator import estimate_remaining_life
 from .samples import normalize_reading, should_store_sample
@@ -103,6 +106,9 @@ def _record_current_device(
     ):
         entity_id = refs.get(kind)
         state = hass.states.get(entity_id) if isinstance(entity_id, str) else None
+        replaced = parse_time(device.get("battery_replaced_at"))
+        if state is not None and replaced and state.last_reported < replaced:
+            continue
         if state is None or state.state in {"unknown", "unavailable"}:
             continue
         source_ids.append(entity_id)
@@ -158,16 +164,17 @@ def _record_current_device(
             item["sample_id"] == sample["sample_id"] for item in data["samples"]
         ):
             data["samples"].append(sample)
-            if len(data["samples"]) > 10000:
-                del data["samples"][:-10000]
+            prune_battery_history(data, now=datetime.now(UTC))
     samples = [item for item in data["samples"] if item["device_id"] == device_id]
     cycles = [item for item in data["cycles"] if item["device_id"] == device_id]
-    estimate = estimate_remaining_life(samples, cycles)
+    settings = {**data.get("settings", {}), **device.get("rules", {})}
+    estimate = estimate_remaining_life(
+        samples, cycles, low_threshold=float(settings.get("low_battery_threshold", 20))
+    )
     previous_attention = bool(device.get("battery_attention"))
     current_level = sample.get("level_percent")
     current_low = sample.get("native_low") is True
     window = estimate.get("remaining_days_range")
-    settings = data.get("settings", {})
     replace_soon = bool(
         window
         and window.get("max", 10_000)
@@ -183,23 +190,26 @@ def _record_current_device(
         or replace_soon
         or bool(estimate.get("abnormal_drain"))
     )
-    if device["battery_attention"] and not previous_attention:
+    escalated = sync_battery_alert(
+        data,
+        device,
+        now=datetime.now(UTC),
+        level=current_level,
+        native_low=sample.get("native_low"),
+        estimate=estimate,
+    )
+    if device["battery_attention"] and (not previous_attention or escalated):
         payload = event_payload(device)
         payload["battery_level"] = current_level
         payload["remaining_days_range"] = estimate.get("remaining_days_range")
         hass.bus.async_fire(BATTERY_ATTENTION_EVENT, payload)
-        if settings.get("notifications_enabled", True):
-            name = device.get("name") or "Sledované zariadenie"
-            level_text = current_level if current_level is not None else "neznáma"
-            async_create(
-                hass,
-                f"{name}: batéria vyžaduje pozornosť. Úroveň: {level_text} %. "
-                "Podrobnosti sú v [Strážcovi senzorov](/sensor_guardian).",
-                title="Strážca senzorov — batéria",
-                notification_id=f"{DOMAIN}_battery_{device_id}",
-            )
+        device["battery_notice_pending"] = True
+        if allowed(data, device, time_zone=hass.config.time_zone):
+            battery_notice(hass, data, device)
+            device["battery_notice_pending"] = False
     elif previous_attention and not device["battery_attention"]:
         async_dismiss(hass, f"{DOMAIN}_battery_{device_id}")
+        device["battery_notice_pending"] = False
     for entity in runtime.get("entities", {}).get(device_id, []):
         if entity.hass is not None and entity.entity_id:
             entity.async_write_ha_state()

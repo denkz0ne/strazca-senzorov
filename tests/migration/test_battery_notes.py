@@ -140,6 +140,18 @@ def test_malformed_source_or_backup_is_rejected():
         restore_backup({"version": 9, "data": {}})
 
 
+def test_old_backup_is_upgraded_and_future_minor_is_rejected():
+    old = empty_store_data()
+    for key in ("signal_samples", "health_history", "battery_stock"):
+        old.pop(key)
+    assert (
+        restore_backup({"version": 1, "minor_version": 1, "data": old})
+        == empty_store_data()
+    )
+    with pytest.raises(StorageDataError):
+        restore_backup({"version": 1, "minor_version": 99, "data": empty_store_data()})
+
+
 def test_recorder_and_aggregated_history_keep_distinct_provenance():
     preview = build_import_preview(
         source_store=None,

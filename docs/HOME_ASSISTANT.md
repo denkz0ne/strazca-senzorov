@@ -43,3 +43,7 @@ Helper entities attach to the original HA device through the supported helper-in
 Emit state/events suitable for user-defined automations. Configurable notifications should have severity, deduplication, cooldown, startup grace, snooze and optional recovery notices. Do not create one bespoke notifier entity per device.
 
 Version 0.1.1 also creates native persistent notifications for a newly notified incident or battery-attention transition. Notification IDs are stable per incident/device; repeated evaluations do not create additional notices. Stable recovery dismisses the incident notice and a confirmed replacement dismisses the battery notice. The notifications_enabled setting controls new native notices without suppressing automation events. GuardianStatus adds not_monitored for intentional battery-only tracking.
+
+## 0.2.0 notification behavior
+
+HA entities/events/actions stay minimal and compatible. Detailed charts, stock, evidence and quality belong to the panel. Native delivery honors global/device enablement, timed snooze, quiet hours and repeat intervals; automation events remain independent. Battery and communication incidents have separate lifecycle. Confirmed physical replacement closes battery attention and starts a cycle; charging does not count stock usage. Temporary snooze is not permanent acknowledgment.

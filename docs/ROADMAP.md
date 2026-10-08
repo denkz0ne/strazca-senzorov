@@ -60,3 +60,7 @@ Validate schema upgrades, restart/reload, recorder-unavailable cases, long-runni
 ## MVP boundary
 
 The first usable release should prioritize generic availability tracking, battery replacement records, basic history-based battery attention, concise HA entities/events, and a functional panel. Advanced per-protocol root-cause certainty and cohort prediction can follow after real labeled observations exist.
+
+## 0.2.0 prevention stage
+
+Dashboard, tracked list/detail, actionable alerts, reviewed onboarding and coherent settings are implemented in the prevention branch. Catalogue/stock are secondary utilities. Verification combines HA regression tests, HACS validation and Chromium interactions; actual HAOS activation remains owner-run. Subsequent stages should calibrate predictions/diagnosis from real device histories and improve provider evidence without expanding entity clutter.

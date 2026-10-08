@@ -8,6 +8,7 @@ from copy import deepcopy
 from datetime import UTC, datetime
 from typing import Any
 
+from ..history import stable_id
 from ..models import GuardianData, validate_store_data
 
 
@@ -31,7 +32,9 @@ def open_or_update_incident(
         (
             item
             for item in result["incidents"]
-            if not item.get("closed_at") and item.get("device_ids") == affected
+            if not item.get("closed_at")
+            and item.get("device_ids") == affected
+            and item.get("kind", "availability") == "availability"
         ),
         None,
     )
@@ -61,7 +64,7 @@ def open_or_update_incident(
         "updated_at": stamp,
         "health_state": health_state,
         "cause": cause_result.get("cause", "unknown"),
-        "confidence": None,
+        "confidence": cause_result.get("confidence", "none"),
         "severity": "warning",
         "evidence": deepcopy(evidence),
         "cause_history": [
@@ -101,6 +104,13 @@ def revise_cause(
         if now.tzinfo
         else now.replace(tzinfo=UTC).isoformat()
     )
+    if provenance == "inferred" and result.get("confirmed_cause") not in {
+        None,
+        "unknown",
+    }:
+        result["cause"] = result["confirmed_cause"]
+        result["confidence"] = "high"
+        return result, False
     if changed:
         history = result.setdefault("cause_history", [])
         history.append(
@@ -134,3 +144,76 @@ def close_incident(incident: dict[str, Any], *, now: datetime) -> dict[str, Any]
         result["health_state"] = "healthy"
         result["notification_state"] = "recovered"
     return result
+
+
+def sync_battery_alert(
+    data: dict,
+    device: dict,
+    *,
+    now: datetime,
+    level=None,
+    native_low=None,
+    estimate=None,
+) -> bool:
+    """Battery attention is independent of device communication availability."""
+    active = next(
+        (
+            row
+            for row in data["incidents"]
+            if row.get("kind") == "battery"
+            and row["device_ids"] == [device["device_id"]]
+            and not row.get("closed_at")
+        ),
+        None,
+    )
+    monitored = (
+        device.get("tracking_mode") in {"battery_only", "battery_and_availability"}
+        and device.get("power_type") != "mains"
+    )
+    if not monitored or not device.get("battery_attention"):
+        if active:
+            closed = close_incident(active, now=now)
+            active.clear()
+            active.update(closed)
+            active["resolution"] = (
+                "battery_attention_cleared" if monitored else "monitoring_disabled"
+            )
+        return False
+    severity = (
+        "critical"
+        if native_low is True or (level is not None and level <= 5)
+        else "warning"
+    )
+    fresh = active is None
+    escalated = bool(
+        active and active.get("severity") != "critical" and severity == "critical"
+    )
+    if fresh:
+        active = {
+            "incident_id": "battery_" + stable_id(device["device_id"], now.isoformat()),
+            "kind": "battery",
+            "device_ids": [device["device_id"]],
+            "opened_at": now.isoformat(),
+            "acknowledged": False,
+            "notification_state": "pending",
+            "cause": "battery",
+            "confidence": "medium",
+            "parent_incident_id": None,
+        }
+        data["incidents"].append(active)
+    evidence = []
+    if level is not None:
+        evidence.append({"feature": "battery_level", "value": level})
+    if native_low is not None:
+        evidence.append({"feature": "native_battery_low", "value": native_low})
+    if estimate and estimate.get("abnormal_drain"):
+        evidence.append({"feature": "abnormal_drain", "value": True})
+    active.update(
+        updated_at=now.isoformat(),
+        health_state="battery_attention",
+        severity=severity,
+        evidence=evidence,
+    )
+    if escalated:
+        active["acknowledged"] = False
+    return fresh or escalated

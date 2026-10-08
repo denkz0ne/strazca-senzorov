@@ -42,3 +42,9 @@ Causes may change as evidence arrives. Preserve initial and revised classificati
 ## Alert behavior
 
 Debounce, cooldown, deduplication, startup grace, maintenance/snooze and optional recovery notifications. Notification delivery uses HA's normal notification mechanisms/actions; HA Repairs are not the general incident-alert channel.
+
+## 0.2.0 availability and prevention
+
+Communication health, battery attention, prediction confidence and data quality are independent. A valid HA state may give healthy availability while the report cadence is still learning; the dashboard still lists incomplete interval coverage. Stored HA timestamps are not asserted as newly received physical packets. Offline causes remain unknown when evidence is insufficient; owner-confirmed causes are retained.
+
+Independent battery incidents include low/native-low, rapid-drain and supported replacement warnings. Availability incidents group shared outages and remove prior child native notices. Temporary snooze resumes unresolved delivery after expiry; acknowledgment suppresses repetition of the current incident. Quiet hours use HA timezone, with explicit critical-device exception. Collection and automation events continue while native delivery is suppressed. Repeat rules apply to battery and availability alerts, including device overrides.

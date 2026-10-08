@@ -13,7 +13,7 @@ from .models import (
 )
 
 CURRENT_MAJOR_VERSION = 1
-CURRENT_MINOR_VERSION = 1
+CURRENT_MINOR_VERSION = 2
 
 
 def migrate_payload(major: int, minor: int, old_data: object) -> GuardianData:
