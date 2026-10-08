@@ -99,6 +99,26 @@ def record_signal(
     return True
 
 
+def prune_battery_history(data: dict, *, now: datetime) -> bool:
+    """Bound each device independently; preserve one explicitly dated old fact."""
+    cutoff = now - timedelta(
+        days=min(730, max(30, int(data.get("settings", {}).get("retention_days", 365))))
+    )
+    groups = defaultdict(list)
+    for row in data.get("samples", []):
+        if parse_time(row.get("timestamp")):
+            groups[row["device_id"]].append(row)
+    kept = []
+    for rows in groups.values():
+        rows.sort(key=lambda row: row["timestamp"])
+        recent = [row for row in rows if parse_time(row["timestamp"]) >= cutoff]
+        kept.extend((recent or rows[-1:])[-4096:])
+    kept.sort(key=lambda row: row["timestamp"])
+    changed = kept != data.get("samples", [])
+    data["samples"][:] = kept
+    return changed
+
+
 def prune_history(data: dict, *, now: datetime) -> bool:
     """Compact old signal observations into weighted daily summaries."""
     before = (
@@ -149,7 +169,8 @@ def prune_history(data: dict, *, now: datetime) -> bool:
         for row in data.get("health_history", [])
         if (stamp := parse_time(row.get("timestamp"))) and stamp >= cutoff
     ]
-    return before != (
+    battery_changed = prune_battery_history(data, now=now)
+    return battery_changed or before != (
         [(row["sample_id"], row.get("count", 1)) for row in data["signal_samples"]],
         [row["transition_id"] for row in data["health_history"]],
     )

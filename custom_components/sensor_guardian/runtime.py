@@ -402,6 +402,9 @@ async def async_process_devices(
                     and not child.get("closed_at")
                 ):
                     child["parent_incident_id"] = incident["incident_id"]
+                    if child.get("notification_state") == "sent":
+                        cancelled_notifications.append(child["incident_id"])
+                    child["notification_state"] = "grouped"
             changed_ids.add(device_id)
         if (
             existing is None
@@ -538,31 +541,44 @@ async def async_process_devices(
         incident = next(
             item for item in data["incidents"] if item["incident_id"] == incident_id
         )
-        if True:
-            names = [
-                item.get("name") or "Sledované zariadenie"
-                for item in data["devices"]
-                if item["device_id"] in (affected_ids or [device_id])
-            ]
-            cause = {
-                "unknown": "nepotvrdená",
-                "battery": "pravdepodobne batéria",
-                "connectivity": "pravdepodobne spojenie",
-                "gateway_upstream": "pravdepodobne spoločná brána",
-                "integration": "pravdepodobne zdrojová integrácia",
-                "power_or_network": "pravdepodobne napájanie alebo sieť",
-            }.get(incident.get("cause"), "nepotvrdená")
-            async_create(
-                hass,
-                f"{', '.join(names)}: problém dostupnosti. Príčina: {cause}. "
-                "Podrobnosti sú v [Strážcovi senzorov](/sensor_guardian).",
-                title="Strážca senzorov — problém zariadenia",
-                notification_id=f"{DOMAIN}_incident_{incident_id}",
-            )
+        names = [
+            item.get("name") or "Sledované zariadenie"
+            for item in data["devices"]
+            if item["device_id"] in (affected_ids or [device_id])
+        ]
+        cause = {
+            "unknown": "nepotvrdená",
+            "battery": "pravdepodobne batéria",
+            "connectivity": "pravdepodobne spojenie",
+            "gateway_upstream": "pravdepodobne spoločná brána",
+            "integration": "pravdepodobne zdrojová integrácia",
+            "power_or_network": "pravdepodobne napájanie alebo sieť",
+        }.get(incident.get("cause"), "nepotvrdená")
+        async_create(
+            hass,
+            f"{', '.join(names)}: problém dostupnosti. Príčina: {cause}. "
+            "Podrobnosti sú v [Strážcovi senzorov](/sensor_guardian).",
+            title="Strážca senzorov — problém zariadenia",
+            notification_id=f"{DOMAIN}_incident_{incident_id}",
+        )
     for device in data["devices"]:
+        battery_incident = next(
+            (
+                row
+                for row in data["incidents"]
+                if row.get("kind") == "battery"
+                and device["device_id"] in row.get("device_ids", [])
+                and not row.get("closed_at")
+            ),
+            None,
+        )
         if (
             device.get("battery_attention")
-            and device.get("battery_notice_pending")
+            and (
+                device.get("battery_notice_pending")
+                or (battery_incident and repeat_due(data, battery_incident, current))
+            )
+            and not (battery_incident and battery_incident.get("acknowledged"))
             and allowed(data, device, now=current, time_zone=time_zone)
         ):
             from .notification_policy import battery_notice

@@ -51,6 +51,15 @@ def battery_notice(hass, data: dict, device: dict) -> None:
 
     from .const import DOMAIN
 
+    for incident in data.get("incidents", []):
+        if (
+            incident.get("kind") == "battery"
+            and device["device_id"] in incident.get("device_ids", [])
+            and not incident.get("closed_at")
+        ):
+            incident["notification_state"] = "sent"
+            incident["last_notified_at"] = datetime.now(UTC).isoformat()
+
     latest = next(
         (
             row

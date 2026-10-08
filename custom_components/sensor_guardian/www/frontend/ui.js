@@ -14,7 +14,7 @@ export const reasons = {
   device_offline: "Hlavná entita je nedostupná.", availability_degraded: "Zariadenie hlási menej často než zvyčajne.",
   battery_low: "Nízka úroveň alebo natívne varovanie batérie.", rapid_drain: "Batéria ubúda neobvykle rýchlo.",
   replacement_window: "Odhadovaný interval výmeny sa blíži.", signal_degrading: "Dlhodobo sa zhoršuje signál.",
-  availability_learning: "Interval hlásení sa ešte učí.", battery_source_missing: "Chýba použiteľný batériový údaj.",
+  availability_learning: "Interval hlásení sa ešte učí.", battery_source_missing: "Chýba použiteľný batériový údaj.", battery_observation_stale: "Batériový údaj je starší než 7 dní; over zdroj a spojenie.",
   estimate_learning: "Na odhad zatiaľ nestačí história.", signal_disabled: "Odporúčané signálové entity sú vypnuté.",
   insufficient_history: "Potrebujeme viac použiteľných meraní alebo vlastné výmenné cykly.",
   no_valid_samples: "Zatiaľ nemáme platné merania batérie.",

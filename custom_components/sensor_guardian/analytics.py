@@ -33,7 +33,7 @@ def signal_trend(rows: list, *, now: datetime) -> dict:
             for row in rows
             if row.get("kind") == kind
             and (stamp := parse_time(row.get("timestamp")))
-            and now - stamp <= timedelta(days=30)
+            and timedelta(0) <= now - stamp <= timedelta(days=30)
         ]
         if len(points) < 6:
             continue
@@ -63,13 +63,20 @@ def device_snapshot(
     device_id = device["device_id"]
     samples, cycles = index["samples"][device_id], index["cycles"][device_id]
     observed = live or {}
+    replaced = parse_time(device.get("battery_replaced_at"))
+    current_samples = [
+        row
+        for row in samples
+        if (stamp := parse_time(row.get("timestamp")))
+        and (not replaced or stamp >= replaced)
+    ]
 
     def reading(key, field):
         if field in observed:
             return observed[field]
         return next(
-            (row[key] for row in reversed(samples) if row.get(key) is not None),
-            device.get(field),
+            (row[key] for row in reversed(current_samples) if row.get(key) is not None),
+            None if replaced else device.get(field),
         )
 
     level = number(reading("level_percent", "battery_level"))
@@ -94,7 +101,22 @@ def device_snapshot(
     )
     state = device.get("health_state", "unknown")
     missing = []
-    if state in {"unknown", "initializing"}:
+    last_battery_at = observed.get("battery_observed_at") or (
+        current_samples[-1]["timestamp"] if current_samples else None
+    )
+    battery_stale = bool(
+        last_battery_at
+        and (stamp := parse_time(last_battery_at))
+        and now - stamp > timedelta(days=7)
+    )
+    if battery and battery_stale:
+        missing.append("battery_observation_stale")
+    profile = index["profiles"].get(device_id, {})
+    if mode in {"availability_only", "battery_and_availability"} and (
+        state in {"unknown", "initializing"}
+        or device.get("health_reason") == "source_available_report_pattern_learning"
+        or not profile.get("interval_count")
+    ):
         missing.append("availability_learning")
     if battery and level is None and voltage is None and low is None:
         missing.append("battery_source_missing")
@@ -194,6 +216,8 @@ def device_snapshot(
         "health_state": state,
         "cause": device.get("cause", "unknown"),
         "battery_level": level,
+        "battery_observed_at": last_battery_at,
+        "battery_stale": battery_stale,
         "battery_low": low,
         "voltage": voltage,
         "signal_values": observed.get("signal_values", []),

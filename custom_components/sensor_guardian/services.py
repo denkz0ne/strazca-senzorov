@@ -139,7 +139,12 @@ def async_register_services(hass: HomeAssistant) -> None:
         for incident in runtime["data"]["incidents"]:
             if device_id in incident["device_ids"] and not incident.get("closed_at"):
                 incident["snoozed_until"] = until
-                incident["acknowledged"] = True
+                incident["notification_state"] = "snoozed"
+                incident["acknowledged"] = False
+                async_dismiss(hass, f"{DOMAIN}_incident_{incident['incident_id']}")
+                if incident.get("kind") == "battery":
+                    device["battery_notice_pending"] = True
+                    async_dismiss(hass, f"{DOMAIN}_battery_{device_id}")
         await runtime["storage"].async_save(runtime["data"])
 
     async def resume(call: ServiceCall) -> None:

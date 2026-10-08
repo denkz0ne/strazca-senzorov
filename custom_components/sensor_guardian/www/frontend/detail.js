@@ -17,8 +17,9 @@ export function detailView(app, data) {
     kv("Signál", signal(device)), kv("Posledný zápis HA", ago(device.last_reported_at)));
   overview.append(facts, el("p", (device.risk?.reasons || []).map(reason).join(" ") || reason(device.health_reason)),
     el("p", "Dostupný stav HA nie je potvrdenie nového rádiového paketu.", "muted"));
+  overview.append(el("p", `Batériový údaj: ${device.battery_observed_at ? time(device.battery_observed_at) : "zatiaľ bez nového pozorovania"}${device.battery_stale ? " · posledná známa hodnota, staršia než 7 dní" : ""}.`, "muted"));
   const actions = el("div", null, "actions");
-  if (device.power_type !== "mains") actions.append(btn("Zaznamenať výmenu batérie", async () => {
+  if (device.power_type === "replaceable_battery") actions.append(btn("Zaznamenať výmenu batérie", async () => {
     if (!window.confirm("Potvrdiť fyzickú výmenu batérie a začať nový cyklus?")) return;
     await app.service("mark_battery_replaced", { device_id:id, battery_type:device.battery_type || "", battery_quantity:device.battery_quantity || 1 }); await app.load(true);
   }));
@@ -33,11 +34,15 @@ export function detailView(app, data) {
   for (const days of [7,30,90]) periods.append(btn(`${days} dní`, async () => { app.state.days = days; await app.load(true); }, app.state.days === days ? "primary" : ""));
   page.append(periods);
   const graphs = el("div", null, "grid"), series = data.series || {};
-  graphs.append(chart("Vývoj batérie", series.battery || [], "%", series.availability || []), availabilityHistory(series.availability || []));
+  graphs.append(chart("Vývoj batérie", series.battery || [], "%", series.availability || [], data.cycles || []), availabilityHistory(series.availability || []));
   if ((series.voltage || []).length) graphs.append(chart("Napätie batérie", series.voltage, " V", series.availability || []));
   for (const kind of [...new Set((series.signal || []).map(row => row.kind))]) graphs.append(chart(`Vývoj signálu · ${String(kind).toUpperCase()}`, series.signal.filter(row => row.kind === kind), kind === "rssi" ? " dBm" : "", series.availability || []));
   if (!(series.signal || []).length) graphs.append(card("Signál sa ešte učí", device.recommended_signal_entities?.length ? "Odporúčané entity sú vypnuté. Po ich potvrdenom zapnutí začneme ukladať históriu." : "Zdroj zatiaľ neposkytol použiteľné signálové údaje."));
   page.append(graphs);
+  const replacements = card("História výmen batérie");
+  for (const cycle of (data.cycles || []).slice(-10).reverse()) replacements.append(el("p", `${time(cycle.started_at)} · ${cycle.battery_type || "typ neevidovaný"} × ${cycle.battery_quantity || 1} · ${cycle.provenance === "user_confirmed" ? "potvrdená fyzická výmena" : "importovaný záznam"}`));
+  if (!(data.cycles || []).length) replacements.append(empty("Zatiaľ nie je zaznamenaná fyzická výmena. Nabíjanie nie je výmena batérie."));
+  page.append(replacements);
   const analysis = el("div", null, "grid"), prediction = card("Podklady predikcie"), diagnosis = card("Diagnostika príčiny");
   prediction.append(kv("Interval výdrže", eta(device.estimate)), kv("Istota odhadu", label(device.estimate?.confidence)),
     el("p", `${device.sample_count || 0} batériových vzoriek · ${device.span_days || 0} dní pokrytia · ${device.report_count || 0} hlásení vybraného zdroja.`, "muted"));
@@ -46,7 +51,7 @@ export function detailView(app, data) {
   for (const incident of (data.incidents || []).slice(0,3)) {
     diagnosis.append(el("p", `${time(incident.opened_at)} · ${label(incident.cause)} · ${incident.closed_at ? "uzavreté" : "aktívne"}`));
     for (const point of incident.evidence || []) diagnosis.append(el("p", app.evidenceText(point), "muted"));
-    if (!incident.closed_at) {
+    if (!incident.closed_at && incident.kind !== "battery") {
       const choice = select("Potvrdiť príčinu", ["unknown","battery","connectivity","gateway_upstream","integration","power_or_network"], incident.cause || "unknown");
       diagnosis.append(choice, btn("Potvrdiť príčinu", async () => { await app.service("confirm_incident_cause", { incident_id:incident.incident_id, cause:choice.value }); await app.load(true); }));
     }
@@ -72,7 +77,7 @@ export function detailView(app, data) {
     const values = {}; for (const [key,value] of Object.entries(ruleDraft)) if (value !== "" && value !== null && value !== undefined) values[key] = ["criticality"].includes(key) || typeof value === "boolean" ? value : Number(value);
     await app.call("update_device_rules",{ device_id:id,values }); app.clearDraft(rulesKey); await app.load(true);
   })); page.append(rules);
-  if (device.power_type !== "mains") {
+  if (device.power_type !== "mains" && ["battery_only","battery_and_availability"].includes(device.tracking_mode)) {
     const battery = card("Informácie o batérii", "Typ a počet slúžia evidencii výmen a zásob. Sledovanie údajov funguje aj bez katalógového modelu."), key=`battery:${id}`, form=el("div",null,"form"), baseBattery={ battery_type:device.battery_type || "",battery_quantity:device.battery_quantity || 1 };
     inputField(app,form,key,"Typ batérie","text",baseBattery,"battery_type",{ placeholder:"Napr. CR2450" });
     inputField(app,form,key,"Počet batérií","number",baseBattery,"battery_quantity",{ min:"1",max:"20" });

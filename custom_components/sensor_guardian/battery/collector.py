@@ -18,7 +18,7 @@ from homeassistant.helpers.event import (
 from ..const import DOMAIN
 from ..diagnosis.incidents import sync_battery_alert
 from ..events import BATTERY_ATTENTION_EVENT, event_payload
-from ..history import parse_time
+from ..history import parse_time, prune_battery_history
 from ..notification_policy import allowed, battery_notice
 from ..runtime import schedule_device_processing
 from .estimator import estimate_remaining_life
@@ -164,8 +164,7 @@ def _record_current_device(
             item["sample_id"] == sample["sample_id"] for item in data["samples"]
         ):
             data["samples"].append(sample)
-            if len(data["samples"]) > 10000:
-                del data["samples"][:-10000]
+            prune_battery_history(data, now=datetime.now(UTC))
     samples = [item for item in data["samples"] if item["device_id"] == device_id]
     cycles = [item for item in data["cycles"] if item["device_id"] == device_id]
     settings = {**data.get("settings", {}), **device.get("rules", {})}

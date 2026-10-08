@@ -19,7 +19,7 @@ from .discovery import (
     async_discover_devices,
     display_identifier,
 )
-from .history import number, stable_id
+from .history import number, parse_time, stable_id
 from .onboarding import apply_tracking, preview_tracking
 
 DEFAULTS = {
@@ -104,10 +104,15 @@ def context(hass, runtime):
         device["identifier"] = display_identifier(device.get("name"))
         data["devices"].append(device)
         readings = live[device["device_id"]] = {}
+        replaced = parse_time(device.get("battery_replaced_at"))
         for kind, entity_id in device.get("entity_refs", {}).items():
             state = hass.states.get(entity_id) if entity_id else None
             if state is None or state.state in {"unknown", "unavailable"}:
                 continue
+            if replaced and state.last_reported < replaced:
+                continue
+            if kind in {"battery_level", "voltage", "battery_low"}:
+                readings["battery_observed_at"] = state.last_reported.isoformat()
             if kind in {"battery_level", "voltage"}:
                 value = number(state.state)
                 if value is not None:
@@ -312,7 +317,10 @@ def register_prevention_commands(hass):
             raise vol.Invalid(str(error)) from error
         result.update(
             meta=meta(hass, runtime),
-            inherited_rules=deepcopy(DEFAULTS | data["settings"]),
+            inherited_rules={
+                key: deepcopy(data["settings"].get(key, value))
+                for key, value in DEFAULTS.items()
+            },
         )
         # Only native sources on this original device may be selected as overrides.
         from homeassistant.helpers import entity_registry
@@ -490,12 +498,12 @@ def register_prevention_commands(hass):
         )
         if not device:
             raise vol.Invalid("Zariadenie sa nesleduje")
-        if not msg["active"]:
+        if not msg["active"] and device.get("tracking_mode") != "ignored":
             device["paused_mode"] = device.get("tracking_mode", "availability_only")
             device["tracking_mode"] = "ignored"
             device["battery_attention"] = False
             async_dismiss(hass, f"{DOMAIN}_battery_{device['device_id']}")
-        else:
+        elif msg["active"] and device.get("tracking_mode") == "ignored":
             device["tracking_mode"] = device.pop("paused_mode", "availability_only")
             _add_device_entities(hass, runtime, device)
         runtime["refresh_report_subscriptions"]()
@@ -540,16 +548,17 @@ def register_prevention_commands(hass):
                 incident["incident_id"] == target["incident_id"]
                 or incident.get("parent_incident_id") == target["incident_id"]
             ):
-                incident["acknowledged"] = True
+                incident["acknowledged"] = not bool(until)
                 if until:
                     incident["snoozed_until"] = until
+                    incident["notification_state"] = "snoozed"
                 async_dismiss(hass, f"{DOMAIN}_incident_{incident['incident_id']}")
                 if incident.get("kind") == "battery":
                     for device_id in incident["device_ids"]:
                         async_dismiss(hass, f"{DOMAIN}_battery_{device_id}")
                         for device in runtime["data"]["devices"]:
                             if device["device_id"] == device_id:
-                                device["battery_notice_pending"] = False
+                                device["battery_notice_pending"] = bool(until)
         if until:
             for device in runtime["data"]["devices"]:
                 if device["device_id"] in ids:

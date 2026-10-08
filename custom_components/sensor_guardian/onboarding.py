@@ -150,10 +150,65 @@ async def apply_tracking(hass, runtime: dict, preview_id: str) -> dict:
     from .runtime import async_process_devices
     from .websocket_api import _add_device_entities
 
+    async def finish(receipt):
+        from homeassistant.helpers import entity_registry
+
+        registry = entity_registry.async_get(hass)
+        for result in receipt["results"]:
+            device = next(
+                row
+                for row in runtime["data"]["devices"]
+                if row["device_id"] == result["device_id"]
+            )
+            _add_device_entities(hass, runtime, device)
+        for change in receipt.get("signal_changes", []):
+            row = registry.async_get(change["entity_id"])
+            if (
+                not row
+                or row.device_id != change["device_id"]
+                or row.platform in {"battery_notes", "sensor_guardian"}
+            ):
+                raise vol.Invalid("Zdroj signálu sa zmenil; operácia čaká na opravu")
+            if row.disabled_by:
+                registry.async_update_entity(row.entity_id, disabled_by=None)
+        runtime["refresh_report_subscriptions"]()
+        runtime["refresh_battery_subscriptions"]()
+        await runtime["reconcile_sources"]()
+        await async_process_devices(hass, runtime)
+        await async_refresh_discovery_notice(hass)
+        receipt["entities_pending"] = any(
+            not entity.entity_id
+            for result in receipt["results"]
+            for entity in runtime.get("entities", {}).get(result["device_id"], [])
+        )
+        receipt["phase"] = "complete"
+        receipt["applied"] = True
+        runtime["data"]["settings"].setdefault("tracking_receipts", {})[preview_id] = (
+            receipt
+        )
+        try:
+            await runtime["storage"].async_save(runtime["data"])
+        except Exception:
+            receipt["phase"] = "pending"
+            receipt["applied"] = False
+            raise
+        return {
+            key: deepcopy(value)
+            for key, value in receipt.items()
+            if key != "signal_changes"
+        }
+
     async with runtime.setdefault("write_lock", asyncio.Lock()):
         receipts = runtime["data"]["settings"].setdefault("tracking_receipts", {})
         if preview_id in receipts:
-            return deepcopy(receipts[preview_id])
+            receipt = receipts[preview_id]
+            if receipt.get("phase") == "pending":
+                return await finish(receipt)
+            return {
+                key: deepcopy(value)
+                for key, value in receipt.items()
+                if key != "signal_changes"
+            }
         plan = runtime.get("tracking_previews", {}).get(preview_id)
         if plan is None or plan["expires_at"] < datetime.now(UTC):
             raise vol.Invalid("Náhľad vypršal; skontroluj zariadenia znovu")
@@ -204,7 +259,16 @@ async def apply_tracking(hass, runtime: dict, preview_id: str) -> dict:
         data = runtime["data"]
         data["devices"].extend(added)
         result = {
-            "applied": True,
+            "applied": False,
+            "phase": "pending",
+            "signal_changes": [
+                {"device_id": item["device_id"], "entity_id": entity_id}
+                for item in plan["items"]
+                if item.get("enable_signals")
+                for entity_id in candidates[item["device_id"]][
+                    "recommended_signal_entities"
+                ]
+            ],
             "operation_id": preview_id,
             "results": [
                 {
@@ -225,30 +289,16 @@ async def apply_tracking(hass, runtime: dict, preview_id: str) -> dict:
             ]
             receipts.pop(preview_id, None)
             raise
-        for device in added:
-            _add_device_entities(hass, runtime, device)
-        from homeassistant.helpers import entity_registry
-
-        registry = entity_registry.async_get(hass)
-        for item in plan["items"]:
-            if not item.get("enable_signals"):
-                continue
-            for entity_id in candidates[item["device_id"]][
-                "recommended_signal_entities"
-            ]:
-                row = registry.async_get(entity_id)
-                if row and row.device_id == item["device_id"] and row.disabled_by:
-                    registry.async_update_entity(entity_id, disabled_by=None)
-        runtime["refresh_report_subscriptions"]()
-        runtime["refresh_battery_subscriptions"]()
-        await runtime["reconcile_sources"]()
-        await async_process_devices(hass, runtime)
-        await async_refresh_discovery_notice(hass)
-        result["entities_pending"] = any(
-            not entity.entity_id
-            for row in added
-            for entity in runtime.get("entities", {}).get(row["device_id"], [])
-        )
         while len(receipts) > 50:
-            del receipts[next(iter(receipts))]
-        return deepcopy(result)
+            completed = next(
+                (
+                    key
+                    for key, value in receipts.items()
+                    if value.get("phase") != "pending"
+                ),
+                None,
+            )
+            if completed is None:
+                break
+            del receipts[completed]
+        return await finish(result)

@@ -14,6 +14,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry
 from homeassistant.helpers.storage import Store
 
+from ..migrations import CURRENT_MAJOR_VERSION, CURRENT_MINOR_VERSION, migrate_payload
 from ..models import (
     GuardianData,
     StorageDataError,
@@ -340,7 +341,11 @@ def apply_import_preview(
 ) -> tuple[GuardianData, dict[str, Any]]:
     """Apply reviewed proposals once, preserving overrides and unmatched rows."""
     result = validate_store_data(data)
-    backup = {"version": 1, "minor_version": 1, "data": deepcopy(result)}
+    backup = {
+        "version": CURRENT_MAJOR_VERSION,
+        "minor_version": CURRENT_MINOR_VERSION,
+        "data": deepcopy(result),
+    }
     settings = result["settings"]
     receipts = settings.setdefault("migration_receipts", {})
     if not isinstance(receipts, dict):
@@ -389,7 +394,9 @@ def restore_backup(backup: object) -> GuardianData:
         or not isinstance(backup.get("data"), dict)
     ):
         raise StorageDataError("Unsupported Sensor Guardian backup")
-    return validate_store_data(backup["data"])
+    return migrate_payload(
+        backup["version"], backup.get("minor_version", 1), backup["data"]
+    )
 
 
 async def async_read_battery_notes(

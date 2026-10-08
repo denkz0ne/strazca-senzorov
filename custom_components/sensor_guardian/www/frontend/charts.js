@@ -2,7 +2,7 @@ import { card, el, empty, num, time } from "./ui.js?v=0.2.0";
 const NS = "http://www.w3.org/2000/svg";
 const svgNode = (tag, attrs = {}) => { const node = document.createElementNS(NS, tag); Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value))); return node; };
 
-export function chart(title, raw, unit = "", availability = []) {
+export function chart(title, raw, unit = "", availability = [], cycles = []) {
   const panel = card(title);
   const points = raw.map(point => ({ ...point, timestamp: new Date(point.timestamp).getTime(), value: num(point.value) })).filter(point => Number.isFinite(point.timestamp)).sort((a,b) => a.timestamp - b.timestamp);
   const values = points.filter(point => point.value !== null);
@@ -24,9 +24,14 @@ export function chart(title, raw, unit = "", availability = []) {
     outages.push([new Date(availability[index].timestamp).getTime(), availability[index+1] ? new Date(availability[index+1].timestamp).getTime() : Date.now()]);
   }
   let path = "", previous = null;
+  const boundaries = cycles.map(cycle => new Date(cycle.started_at).getTime()).filter(Number.isFinite);
+  for (const stamp of boundaries.filter(stamp => stamp >= first && stamp <= last)) {
+    svg.append(svgNode("line", { x1:x(stamp),x2:x(stamp),y1:25,y2:170,stroke:"var(--warning-color,#e6a23c)","stroke-dasharray":"4 4" }));
+    const marker=svgNode("text", {x:x(stamp),y:18,class:"chart-text"});marker.textContent="Výmena";svg.append(marker);
+  }
   for (const point of points) {
     if (point.value === null) { previous = null; continue; }
-    const gap = previous && (point.timestamp - previous.timestamp > 3 * 86400000 || outages.some(([start,end]) => start < point.timestamp && end > previous.timestamp));
+    const gap = previous && (point.timestamp - previous.timestamp > 3 * 86400000 || outages.some(([start,end]) => start < point.timestamp && end > previous.timestamp) || boundaries.some(stamp => stamp > previous.timestamp && stamp <= point.timestamp));
     path += `${!previous || gap ? "M" : "L"}${x(point.timestamp).toFixed(1)},${y(point.value).toFixed(1)} `; previous = point;
     svg.append(svgNode("circle", { cx:x(point.timestamp), cy:y(point.value), r:3, fill:"var(--primary-color,#008eab)" }));
   }
