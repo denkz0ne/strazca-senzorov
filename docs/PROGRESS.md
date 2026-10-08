@@ -185,3 +185,9 @@ This log records completed work and verification for the staged development plan
 - Current implementation 96e3aa3: GitHub Actions [37723584803](https://github.com/denkz0ne/strazca-senzorov/actions/runs/37723584803) passed 110 HA tests, Ruff/JS/JSON, HACS 8 checks and Chromium interactions. Local Chrome interaction flow passed and produced dashboard/detail previews with simulated data.
 - Updated README, architecture/data model, migration, availability, HA API, user/developer guides, frontend, roadmap, open questions, changelog, implementation ledger and owner update checklist. Delivery PR/main CI and HACS metadata are recorded below after completion.
 - No live HA installation or restart was performed. Owner activation and live import/restore/browser checks remain issue #10. No stable tag/release is published.
+
+### Delivery verification
+
+- [PR #23](https://github.com/denkz0ne/strazca-senzorov/pull/23) merged as dc9d373 on 2026-10-08; issue #21 closed. [Main CI 37723915734](https://github.com/denkz0ne/strazca-senzorov/actions/runs/37723915734) passed python/HACS/frontend jobs.
+- Refreshed HACS repository information only. Read-back confirms installed 7d1483a, available dc9d373 and pending_update true. GitHub default branch is main. Owner can now download the integration update, restart and verify backend/frontend 0.2.0.
+- No HAOS download/restart or stable release/tag. Issue #10 retains live installation, migration/restore and actual browser/provider evidence. Documentation-only audit follows the tested merge without changing implementation.

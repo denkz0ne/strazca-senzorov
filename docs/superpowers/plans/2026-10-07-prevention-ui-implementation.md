@@ -58,8 +58,8 @@ Files: www/panel.js, www/frontend/*.js, panel.py, tests/frontend/test_runtime_pa
 
 - [x] Full pytest/HACS/Chromium checks and source/API/UI end-to-end regressions.
 - [x] Fresh-context branch review, correct important findings, and rerun affected checks.
-- [ ] Version 0.2.0, docs/changelog/progress/contracts/schema/update notes; merge reviewed PR.
-- [ ] Verify main CI and actual HACS update metadata. Live installation remains owner-controlled.
+- [x] Version 0.2.0, docs/changelog/progress/contracts/schema/update notes; merge reviewed PR.
+- [x] Verify main CI and actual HACS update metadata. Live installation remains owner-controlled.
 
 ## Ledger
 
@@ -76,3 +76,5 @@ Files: www/panel.js, www/frontend/*.js, panel.py, tests/frontend/test_runtime_pa
 - Ruling: retain one dated last-known battery sample beyond retention and cap other battery samples per device (4096) — prevents a chatty device deleting another's evidence — extreme report rates shorten retained raw history.
 - Ruling: warning horizons are per-device, so dashboard says preventive recommendations rather than a fixed 14-day promise — avoids misleading labels — owner must check inherited rules for the actual horizon.
 - Owner installation/restart/live comparison remains issue #10; GitHub delivery is verified separately.
+
+- Delivered: PR #23 merged at dc9d373; main run 37723915734 passed all three jobs (110 HA tests, HACS, Chromium). Issue #21 closed automatically. HACS read-back: installed 7d1483a, available dc9d373, pending_update true; GitHub default is main. Only HACS information refreshed, no download or HA restart.
