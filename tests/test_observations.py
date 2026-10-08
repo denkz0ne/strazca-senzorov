@@ -1,9 +1,9 @@
 from datetime import UTC, datetime, timedelta
 
 from custom_components.sensor_guardian.history import (
+    prune_battery_history,
     record_health,
     record_signal,
-    prune_battery_history,
 )
 from custom_components.sensor_guardian.models import empty_store_data
 

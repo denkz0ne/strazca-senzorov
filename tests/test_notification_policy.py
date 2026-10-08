@@ -33,3 +33,22 @@ def test_snooze_and_global_disable_are_not_overridden_by_criticality():
     assert not allowed({"settings": {"notifications_enabled": False}}, device, now=now)
     device["snoozed_until"] = "2026-10-08T00:00:00+00:00"
     assert not allowed({"settings": {}}, device, now=now)
+
+
+async def test_battery_notice_records_delivery_for_repetition(hass):
+    from datetime import timedelta
+
+    from custom_components.sensor_guardian.notification_policy import (
+        battery_notice,
+        repeat_due,
+    )
+
+    incident = {"incident_id": "battery", "device_ids": ["a"], "kind": "battery"}
+    data = {
+        "settings": {"notification_repeat_minutes": 60},
+        "samples": [],
+        "incidents": [incident],
+    }
+    battery_notice(hass, data, {"device_id": "a"})
+    assert incident["notification_state"] == "sent"
+    assert repeat_due(data, incident, datetime.now(UTC) + timedelta(minutes=61))

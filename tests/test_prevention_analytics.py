@@ -129,3 +129,17 @@ def test_replaced_battery_does_not_display_previous_cycle_as_current():
     row = dashboard(data, now=NOW)["devices"][0]
     assert row["battery_level"] is None
     assert "battery_source_missing" in row["quality"]["missing"]
+
+
+def test_available_source_is_not_complete_cadence_coverage():
+    data = empty_store_data()
+    data["devices"] = [
+        {
+            "device_id": "a",
+            "tracking_mode": "availability_only",
+            "health_state": "healthy",
+            "health_reason": "source_available_report_pattern_learning",
+        }
+    ]
+    row = dashboard(data, now=NOW)["devices"][0]
+    assert "availability_learning" in row["quality"]["missing"]
