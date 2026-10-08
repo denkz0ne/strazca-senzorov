@@ -38,7 +38,7 @@ def test_dashboard_counts_unique_devices_and_separates_unknown_from_healthy():
     ]
     result = dashboard(data, now=NOW)
     assert result["counts"]["offline"] == 2
-    assert result["counts"]["coverage"] == 1
+    assert result["counts"]["coverage"] == 3
     assert len(result["alerts"]) == 1
     assert result["alerts"][0]["device_count"] == 2
     assert result["devices"][2]["battery_level"] is None

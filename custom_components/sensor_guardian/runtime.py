@@ -340,7 +340,7 @@ async def async_process_devices(
                 active_ids.append(incident["incident_id"])
             if (
                 existing is None
-                or repeat_due(data, incident, current)
+                or repeat_due(data, incident, current, device)
                 or incident.get("notification_state")
                 in {
                     "pending",
@@ -408,7 +408,11 @@ async def async_process_devices(
             changed_ids.add(device_id)
         if (
             existing is None
-            or repeat_due(data, incident, current)
+            or any(
+                repeat_due(data, incident, current, member)
+                for member in data["devices"]
+                if member["device_id"] in ids
+            )
             or incident.get("notification_state")
             in {
                 "pending",
@@ -576,7 +580,10 @@ async def async_process_devices(
             device.get("battery_attention")
             and (
                 device.get("battery_notice_pending")
-                or (battery_incident and repeat_due(data, battery_incident, current))
+                or (
+                    battery_incident
+                    and repeat_due(data, battery_incident, current, device)
+                )
             )
             and not (battery_incident and battery_incident.get("acknowledged"))
             and allowed(data, device, now=current, time_zone=time_zone)

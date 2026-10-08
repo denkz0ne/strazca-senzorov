@@ -35,7 +35,7 @@ export function detailView(app, data) {
   page.append(periods);
   const graphs = el("div", null, "grid"), series = data.series || {};
   graphs.append(chart("Vývoj batérie", series.battery || [], "%", series.availability || [], data.cycles || []), availabilityHistory(series.availability || []));
-  if ((series.voltage || []).length) graphs.append(chart("Napätie batérie", series.voltage, " V", series.availability || []));
+  if ((series.voltage || []).length) graphs.append(chart("Napätie batérie", series.voltage, " V", series.availability || [], data.cycles || []));
   for (const kind of [...new Set((series.signal || []).map(row => row.kind))]) graphs.append(chart(`Vývoj signálu · ${String(kind).toUpperCase()}`, series.signal.filter(row => row.kind === kind), kind === "rssi" ? " dBm" : "", series.availability || []));
   if (!(series.signal || []).length) graphs.append(card("Signál sa ešte učí", device.recommended_signal_entities?.length ? "Odporúčané entity sú vypnuté. Po ich potvrdenom zapnutí začneme ukladať históriu." : "Zdroj zatiaľ neposkytol použiteľné signálové údaje."));
   page.append(graphs);

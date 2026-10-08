@@ -34,8 +34,11 @@ def allowed(
     return True
 
 
-def repeat_due(data: dict, incident: dict, now: datetime) -> bool:
-    minutes = int(data.get("settings", {}).get("notification_repeat_minutes", 0))
+def repeat_due(
+    data: dict, incident: dict, now: datetime, device: dict | None = None
+) -> bool:
+    rules = {**data.get("settings", {}), **(device or {}).get("rules", {})}
+    minutes = int(rules.get("notification_repeat_minutes", 0))
     previous = parse_time(incident.get("last_notified_at"))
     return bool(
         minutes > 0

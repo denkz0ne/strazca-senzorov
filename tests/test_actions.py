@@ -42,7 +42,6 @@ async def test_cause_confirmation_and_snooze_resume_actions(hass, hass_storage):
     runtime = hass.data["sensor_guardian"][entry.entry_id]
     incident = runtime["data"]["incidents"][0]
     assert incident["confirmed_cause"] == "connectivity"
-    assert incident["acknowledged"] is True
     assert datetime.fromisoformat(incident["snoozed_until"]) > datetime.now(UTC)
     assert not incident.get("acknowledged")
     assert incident["notification_state"] == "snoozed"
